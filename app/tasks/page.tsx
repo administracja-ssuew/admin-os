@@ -36,7 +36,6 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetchData()
-    // Automatyczny widok listy dla telefonów
     if (window.innerWidth < 768) setViewMode('list')
   }, [])
 
@@ -180,7 +179,21 @@ export default function TasksPage() {
     setIsSubmitting(false)
   }
 
-  const filteredTasks = tasks.filter((t: any) => (t.title || '').toLowerCase().includes(searchTerm.toLowerCase()))
+  // --- INTELIGENTNE FILTROWANIE WIDOCZNOŚCI ---
+  const filteredTasks = tasks.filter((t: any) => {
+    const matchesSearch = (t.title || '').toLowerCase().includes(searchTerm.toLowerCase())
+    if (!matchesSearch) return false
+
+    // Zarząd widzi absolutnie wszystko
+    if (isAdmin) return true
+
+    // Zwykły członek widzi tylko:
+    const isMine = t.owner_id === currentUser?.id
+    const isMyDept = t.department_id === currentUser?.department_id
+    const isGlobal = !t.department_id && !t.owner_id // Zadania rzucone globalnie, bez pionu
+
+    return isMine || isMyDept || isGlobal
+  })
   
   const columns = [
     { id: 'to_do', title: 'Do Zrobienia', color: 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50', textColor: 'text-slate-600 dark:text-slate-400' },
@@ -218,16 +231,25 @@ export default function TasksPage() {
           </div>
         )}
         
-        {/* POPRAWIONY UKŁAD DOLNEGO PASKA (Flex-wrap i Truncate) */}
         <div className="flex flex-wrap items-center justify-between gap-2 mt-auto pt-3 border-t border-slate-50 dark:border-slate-700/50 relative z-10">
           <div className="flex-1 min-w-0">
             {isUnassigned ? (
               task.departments ? (
-                <button onClick={(e) => claimTask(e, task.id)} title={`Dla: ${task.departments.name}`} className={`max-w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1 ${isForMyDept ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
-                  {isForMyDept ? <Hand size={12} className="shrink-0"/> : <Building2 size={12} className="shrink-0"/>}
-                  <span className="truncate">{isForMyDept ? 'Biorę to!' : `Dla: ${task.departments.name}`}</span>
-                </button>
+                isForMyDept ? (
+                  // Przycisk "Biorę to" TYLKO dla własnego pionu
+                  <button onClick={(e) => claimTask(e, task.id)} title={`Dla: ${task.departments.name}`} className="max-w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white animate-pulse">
+                    <Hand size={12} className="shrink-0"/>
+                    <span className="truncate">Biorę to!</span>
+                  </button>
+                ) : (
+                  // Jeśli jakimś cudem zobaczy to ktoś inny (np. Admin widzi wszystko), nie może tego wziąć jednym kliknięciem
+                  <div title={`Dla: ${task.departments.name}`} className="max-w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm flex items-center gap-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                    <Building2 size={12} className="shrink-0"/>
+                    <span className="truncate">Dla: {task.departments.name}</span>
+                  </div>
+                )
               ) : (
+                // Zadanie totalnie wolne
                 <button onClick={(e) => claimTask(e, task.id)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md transition-colors flex items-center gap-1 animate-pulse">
                   <Hand size={12} /> Biorę to!
                 </button>
@@ -268,7 +290,6 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {/* WIDOK: TABLICA (DESKTOP) */}
         {viewMode === 'board' && (
           <div className="flex-1 flex gap-4 overflow-x-auto custom-scrollbar pb-4 items-start">
             {columns.map(col => (
@@ -280,7 +301,6 @@ export default function TasksPage() {
           </div>
         )}
 
-        {/* WIDOK: LISTA PIONOWA (MOBILE / WYBÓR) */}
         {viewMode === 'list' && (
           <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-4 pr-2">
             {columns.map(col => {
@@ -301,7 +321,6 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* --- SZUFLADA ZADANIA --- */}
       {isDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsDrawerOpen(false)} />}
       <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {selectedTask && (
@@ -377,7 +396,6 @@ export default function TasksPage() {
                 </div>
               )}
 
-              {/* ZAŁĄCZNIKI NATYWNE */}
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
                 <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Paperclip size={14}/> Załączniki (Twój Dysk)</h3>
                 
@@ -403,7 +421,6 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              {/* PODZADANIA */}
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
                 <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><CheckSquare size={14}/> Podzadania</h3>
                 <div className="space-y-2 mb-4">
