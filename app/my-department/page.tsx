@@ -68,40 +68,26 @@ export default function MyDepartmentPage() {
         setDepartment(userDept)
 
         if (userDept) {
-          // Pobieramy ID członków podkomisji
           const { data: members } = await supabase.from('users').select('id').eq('department_id', userDept.id)
           const memberIds = members?.map(m => m.id) || []
           
-          // 🔥 NAPRAWIONE POBIERANIE ZADAŃ 🔥
-          // Pobieramy zadania, które są przypisane DO LUDZI w pionie LUB BEZPOŚREDNIO DO PIONU
-          let tasksQuery = supabase.from('tasks')
-            .select('*, users!tasks_owner_id_fkey(first_name, last_name)')
-            .neq('status', 'done')
-            .order('deadline', { ascending: true })
-
-          if (memberIds.length > 0) {
-            tasksQuery = tasksQuery.or(`department_id.eq.${userDept.id},owner_id.in.(${memberIds.join(',')})`)
-          } else {
-            tasksQuery = tasksQuery.eq('department_id', userDept.id)
-          }
-
+          let tasksQuery = supabase.from('tasks').select('*, users!tasks_owner_id_fkey(first_name, last_name)').neq('status', 'done').order('deadline', { ascending: true })
+          if (memberIds.length > 0) { tasksQuery = tasksQuery.or(`department_id.eq.${userDept.id},owner_id.in.(${memberIds.join(',')})`) } 
+          else { tasksQuery = tasksQuery.eq('department_id', userDept.id) }
           const { data: tasks } = await tasksQuery
           if (tasks) setDeptTasks(tasks)
 
-          // Przestrzeń robocza (notatnik)
           const { data: note } = await supabase.from('department_notes').select('content').eq('department_id', userDept.id).single()
           if (note) setWorkspaceNote(note.content)
           else await supabase.from('department_notes').insert([{ department_id: userDept.id, content: '' }])
 
           const deptName = userDept.name.toLowerCase()
 
-          // DOTACJE
           if (deptName.includes('dotacj')) {
             const { data: grantsData } = await supabase.from('grants_radar').select('*, owner:users!grants_radar_owner_id_fkey(first_name, last_name)').order('deadline', { ascending: true })
             if (grantsData) setGrants(grantsData)
           }
 
-          // LOGITECH
           if (deptName.includes('logistyk') || deptName.includes('logitech')) {
             const { data: assetsData } = await supabase.from('assets').select('*').order('name', { ascending: true })
             if (assetsData) setAssets(assetsData)
@@ -109,7 +95,6 @@ export default function MyDepartmentPage() {
             if (loansData) setLoans(loansData)
           }
 
-          // AiKB
           if (deptName.includes('archiwizacj') || deptName.includes('bieżąc')) {
             const { data: archData } = await supabase.from('archive_folders').select('*').order('created_at', { ascending: false })
             if (archData) setArchiveFolders(archData)
@@ -303,7 +288,7 @@ export default function MyDepartmentPage() {
       )
     }
 
-    // 🟣 WIDOK: AiKB (Archiwizacja i Pisma)
+    // 🟣 WIDOK: AiKB
     if (deptName.includes('archiwizacj') || deptName.includes('bieżąc')) {
       return (
         <div className="flex flex-col gap-8">
@@ -372,15 +357,18 @@ export default function MyDepartmentPage() {
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {archiveFolders.map(folder => (
-                  <div key={folder.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-3 group hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight pr-2">{folder.title}</h3>
-                      <select className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded outline-none border cursor-pointer ${folder.status === 'W przygotowaniu' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-400 dark:border-yellow-800' : 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800'}`} value={folder.status} onChange={(e) => updateArchiveStatus(folder.id, e.target.value)}>
-                        <option value="W przygotowaniu">W przygotowaniu</option>
-                        <option value="Przekazane do Archiwum">Zarchiwizowane</option>
-                      </select>
+                  <div key={folder.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col h-full group hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
+                    {/* POPRAWIONY LAYOUT - ZAPOBIEGANIE NAKŁADANIU SIĘ TEKSTU I STATUSU */}
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div className="flex justify-between items-start">
+                        <select className={`w-max max-w-full truncate text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded outline-none border cursor-pointer ${folder.status === 'W przygotowaniu' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-400 dark:border-yellow-800' : 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800'}`} value={folder.status} onChange={(e) => updateArchiveStatus(folder.id, e.target.value)}>
+                          <option value="W przygotowaniu">W przygotowaniu</option>
+                          <option value="Przekazane do Archiwum">Zarchiwizowane</option>
+                        </select>
+                      </div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-snug break-words">{folder.title}</h3>
                     </div>
-                    <div className="flex justify-between items-end mt-auto pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <div className="flex justify-between items-end mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-1 text-xs font-bold text-slate-500"><Paperclip size={12}/> {folder.attachments?.length || 0} plików</div>
                       <button onClick={() => { setSelectedFolder(folder); setIsFolderDrawerOpen(true) }} className="text-xs font-bold text-orange-600 hover:underline">Zarządzaj wkładem</button>
                     </div>
@@ -432,7 +420,6 @@ export default function MyDepartmentPage() {
                 <Link href="/tasks" className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Kanban</Link>
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
-                {/* ZAKTUALIZOWANE RENDEROWANIE ZADAŃ */}
                 {deptTasks.length > 0 ? deptTasks.map(task => (
                   <Link key={task.id} href="/tasks" className="block p-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-700 transition-colors group">
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1 group-hover:text-blue-500 transition-colors leading-tight">{task.title}</h3>
@@ -548,10 +535,7 @@ export default function MyDepartmentPage() {
               <button onClick={() => setIsArchiveModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
             </div>
             <form onSubmit={handleAddArchiveFolder} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa (np. Protokoły 2026)</label>
-                <input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={archiveForm.title} onChange={(e) => setArchiveForm({...archiveForm, title: e.target.value})} />
-              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa (np. Protokoły 2026)</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={archiveForm.title} onChange={(e) => setArchiveForm({...archiveForm, title: e.target.value})} /></div>
               <button type="submit" disabled={isSubmittingArchive} className="w-full py-4 mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl flex justify-center gap-2 transition-colors">Utwórz teczkę</button>
             </form>
           </div>
@@ -567,19 +551,10 @@ export default function MyDepartmentPage() {
               <button onClick={() => setIsPetitionModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
             </div>
             <form onSubmit={handleAddPetition} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Przedmiot Podania</label>
-                <input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.title} onChange={(e) => setPetitionForm({...petitionForm, title: e.target.value})} />
-              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Przedmiot Podania</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.title} onChange={(e) => setPetitionForm({...petitionForm, title: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Adresat (np. Prorektor)</label>
-                  <input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.recipient} onChange={(e) => setPetitionForm({...petitionForm, recipient: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Złożenia</label>
-                  <input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={petitionForm.submission_date} onChange={(e) => setPetitionForm({...petitionForm, submission_date: e.target.value})} />
-                </div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Adresat (np. Prorektor)</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.recipient} onChange={(e) => setPetitionForm({...petitionForm, recipient: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Złożenia</label><input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={petitionForm.submission_date} onChange={(e) => setPetitionForm({...petitionForm, submission_date: e.target.value})} /></div>
               </div>
               <button type="submit" disabled={isSubmittingPetition} className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex justify-center gap-2 transition-colors">Wpisz do Rejestru</button>
             </form>
