@@ -153,9 +153,20 @@ export default function MyDepartmentPage() {
     setIsUploading(true)
     const toastId = toast.loading('Wrzucanie pliku na serwer...')
     try {
-      // ZAMIAST LOSOWEJ NAZWY, ROBIMY LOSOWY FOLDER I ORYGINALNĄ NAZWĘ
-      // Zamieniamy tylko ewentualne spacje na podłogi, żeby linki były "czyste"
-      const safeFileName = file.name.replace(/\s+/g, '_')
+      // ODPOLSZCZACZ: Zamienia polskie znaki na standardowe, a spacje na podkreślenia
+      const safeFileName = file.name
+        .replace(/ą/g, 'a').replace(/Ą/g, 'A')
+        .replace(/ć/g, 'c').replace(/Ć/g, 'C')
+        .replace(/ę/g, 'e').replace(/Ę/g, 'E')
+        .replace(/ł/g, 'l').replace(/Ł/g, 'L')
+        .replace(/ń/g, 'n').replace(/Ń/g, 'N')
+        .replace(/ó/g, 'o').replace(/Ó/g, 'O')
+        .replace(/ś/g, 's').replace(/Ś/g, 'S')
+        .replace(/ź/g, 'z').replace(/Ź/g, 'Z')
+        .replace(/ż/g, 'z').replace(/Ż/g, 'Z')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '_') // Wszelkie inne dziwne znaki i spacje zamienia na _
+
+      // Budujemy bezpieczną ścieżkę do bucketa
       const filePath = `aikb/${table}/${recordId}/${crypto.randomUUID()}/${safeFileName}`
       
       const { error: uploadError } = await supabase.storage.from('adminos-files').upload(filePath, file, {
@@ -164,6 +175,8 @@ export default function MyDepartmentPage() {
       if (uploadError) throw uploadError
 
       const { data } = supabase.storage.from('adminos-files').getPublicUrl(filePath)
+      
+      // Ale do JSONB dodajemy oryginalną nazwę (file.name), żeby w systemie wyglądało ładnie!
       const newAttachment = { id: crypto.randomUUID(), name: file.name, url: data.publicUrl, added_at: new Date().toISOString() }
       const updatedAttachments = [...(currentRecord.attachments || []), newAttachment]
       
@@ -177,6 +190,7 @@ export default function MyDepartmentPage() {
       toast.success('Dokument podpięty!', { id: toastId })
     } catch (error) { 
       toast.error('Błąd podczas wgrywania pliku', { id: toastId }) 
+      console.error(error)
     } finally { 
       setIsUploading(false) 
     }
