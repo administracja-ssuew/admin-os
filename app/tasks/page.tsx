@@ -26,7 +26,6 @@ export default function TasksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   
-  // Tryb Edycji dla Admina
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
 
@@ -37,6 +36,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetchData()
+    // Automatyczny widok listy dla telefonów
     if (window.innerWidth < 768) setViewMode('list')
   }, [])
 
@@ -85,15 +85,10 @@ export default function TasksPage() {
     else toast.error('Błąd przypisywania', { id: toastId })
   }
 
-  // --- NOWE FUNKCJE ADMINA (EDYCJA I USUWANIE) ---
   const startEditing = () => {
     setEditForm({
-      title: selectedTask.title,
-      description: selectedTask.description || '',
-      owner_id: selectedTask.owner_id || '',
-      department_id: selectedTask.department_id || '',
-      deadline: selectedTask.deadline || '',
-      priority: selectedTask.priority
+      title: selectedTask.title, description: selectedTask.description || '', owner_id: selectedTask.owner_id || '',
+      department_id: selectedTask.department_id || '', deadline: selectedTask.deadline || '', priority: selectedTask.priority
     })
     setIsEditingTask(true)
   }
@@ -101,19 +96,13 @@ export default function TasksPage() {
   const saveTaskEdit = async () => {
     const toastId = toast.loading('Zapisywanie zmian...')
     const { error } = await supabase.from('tasks').update({
-      title: editForm.title,
-      description: editForm.description,
-      owner_id: editForm.owner_id || null,
-      department_id: editForm.department_id || null,
-      deadline: editForm.deadline || null,
-      priority: editForm.priority
+      title: editForm.title, description: editForm.description, owner_id: editForm.owner_id || null,
+      department_id: editForm.department_id || null, deadline: editForm.deadline || null, priority: editForm.priority
     }).eq('id', selectedTask.id)
 
     if (!error) {
       toast.success('Zaktualizowano zadanie', { id: toastId })
-      setIsEditingTask(false)
-      setIsDrawerOpen(false)
-      fetchData()
+      setIsEditingTask(false); setIsDrawerOpen(false); fetchData()
     } else {
       toast.error('Błąd zapisu', { id: toastId })
     }
@@ -123,20 +112,13 @@ export default function TasksPage() {
     if(!confirm('Czy na pewno chcesz usunąć to zadanie? (Nie da się tego cofnąć)')) return
     const toastId = toast.loading('Usuwanie...')
     const { error } = await supabase.from('tasks').delete().eq('id', selectedTask.id)
-    if (!error) {
-      toast.success('Zadanie usunięte', { id: toastId })
-      setIsDrawerOpen(false)
-      fetchData()
-    } else {
-      toast.error('Błąd usuwania', { id: toastId })
-    }
+    if (!error) { toast.success('Zadanie usunięte', { id: toastId }); setIsDrawerOpen(false); fetchData() } 
+    else toast.error('Błąd usuwania', { id: toastId })
   }
 
-  // --- NATIVE UPLOAD DO SUPABASE STORAGE ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !selectedTask) return
-
     setIsUploading(true)
     const toastId = toast.loading('Wrzucanie pliku na serwer...')
 
@@ -145,14 +127,10 @@ export default function TasksPage() {
       const fileName = `${crypto.randomUUID()}.${fileExt}`
       const filePath = `tasks/${selectedTask.id}/${fileName}`
 
-      // 1. Upload do bucketa
       const { error: uploadError } = await supabase.storage.from('adminos-files').upload(filePath, file)
       if (uploadError) throw uploadError
 
-      // 2. Pobranie publicznego linku
       const { data } = supabase.storage.from('adminos-files').getPublicUrl(filePath)
-      
-      // 3. Zapis do JSONB w tabeli tasks
       const newAttachment = { id: crypto.randomUUID(), name: file.name, url: data.publicUrl, added_at: new Date().toISOString() }
       const updatedAttachments = [...(selectedTask.attachments || []), newAttachment]
 
@@ -163,7 +141,6 @@ export default function TasksPage() {
       fetchData()
       toast.success('Plik dodany poprawnie!', { id: toastId })
     } catch (error) {
-      console.error(error)
       toast.error('Błąd podczas wgrywania pliku', { id: toastId })
     } finally {
       setIsUploading(false)
@@ -204,6 +181,7 @@ export default function TasksPage() {
   }
 
   const filteredTasks = tasks.filter((t: any) => (t.title || '').toLowerCase().includes(searchTerm.toLowerCase()))
+  
   const columns = [
     { id: 'to_do', title: 'Do Zrobienia', color: 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50', textColor: 'text-slate-600 dark:text-slate-400' },
     { id: 'in_progress', title: 'W Toku', color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/50', textColor: 'text-blue-700 dark:text-blue-400' },
@@ -218,34 +196,51 @@ export default function TasksPage() {
     return (
       <div className={`bg-white dark:bg-slate-800 p-4 rounded-xl border transition-all group cursor-pointer relative overflow-hidden softly-lifted ${isUnassigned ? 'border-orange-200 dark:border-orange-800/50 shadow-orange-100 dark:shadow-none' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`} onClick={() => { setSelectedTask(task); setIsEditingTask(false); setIsDrawerOpen(true); }}>
         {isUnassigned && <div className="absolute inset-0 bg-orange-50/30 dark:bg-orange-900/5 pointer-events-none"></div>}
+        
         <div className="flex justify-between items-start mb-2 relative z-10">
           <div className="flex gap-1.5 flex-wrap">
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${task.priority === 'high' ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800/50' : task.priority === 'medium' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500 border-yellow-100 dark:border-yellow-800/50' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-600'}`}>{task.priority === 'high' ? 'Pilne' : task.priority === 'medium' ? 'Średnie' : 'Niskie'}</span>
             {task.projects && <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800/50 flex items-center gap-1"><FolderKanban size={10} /> {task.projects.name}</span>}
             {task.cases && <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800/50 flex items-center gap-1"><Briefcase size={10} /> {task.cases.case_number}</span>}
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded shadow-sm">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded shadow-sm shrink-0 ml-2">
             {task.status !== 'to_do' && <button onClick={(e) => {e.stopPropagation(); updateTaskStatus(task.id, task.status === 'done' ? 'in_progress' : 'to_do')}} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-600"><ArrowLeft size={14}/></button>}
             {task.status !== 'done' && <button onClick={(e) => {e.stopPropagation(); updateTaskStatus(task.id, task.status === 'to_do' ? 'in_progress' : 'done')}} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-600"><ArrowRight size={14}/></button>}
           </div>
         </div>
+        
         <h3 className="font-bold text-slate-900 dark:text-white mb-3 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors relative z-10">{task.title}</h3>
+        
         {task.checklists?.length > 0 && (
           <div className="mb-3 relative z-10">
             <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1"><span>Postęp ({task.completion_percentage}%)</span><span>{task.checklists.filter((c: any) => c.completed).length}/{task.checklists.length}</span></div>
             <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden"><div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${task.completion_percentage || 0}%` }}></div></div>
           </div>
         )}
-        <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50 dark:border-slate-700/50 relative z-10">
-          {isUnassigned ? (
-            task.departments ? <button onClick={(e) => claimTask(e, task.id)} className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1 ${isForMyDept ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>{isForMyDept ? <Hand size={12}/> : <Building2 size={12}/>} {isForMyDept ? 'Twój Pion: Biorę to!' : `Dla: ${task.departments.name}`}</button> : <button onClick={(e) => claimTask(e, task.id)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md transition-colors flex items-center gap-1 animate-pulse"><Hand size={12} /> Biorę to!</button>
-          ) : (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-[9px] shrink-0">{task.owner ? `${task.owner.first_name.charAt(0)}${task.owner.last_name.charAt(0)}` : '?'}</div>
-              <span className="truncate max-w-[80px]">{task.owner ? task.owner.first_name : 'Brak'}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
+        
+        {/* POPRAWIONY UKŁAD DOLNEGO PASKA (Flex-wrap i Truncate) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-auto pt-3 border-t border-slate-50 dark:border-slate-700/50 relative z-10">
+          <div className="flex-1 min-w-0">
+            {isUnassigned ? (
+              task.departments ? (
+                <button onClick={(e) => claimTask(e, task.id)} title={`Dla: ${task.departments.name}`} className={`max-w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1 ${isForMyDept ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
+                  {isForMyDept ? <Hand size={12} className="shrink-0"/> : <Building2 size={12} className="shrink-0"/>}
+                  <span className="truncate">{isForMyDept ? 'Biorę to!' : `Dla: ${task.departments.name}`}</span>
+                </button>
+              ) : (
+                <button onClick={(e) => claimTask(e, task.id)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md transition-colors flex items-center gap-1 animate-pulse">
+                  <Hand size={12} /> Biorę to!
+                </button>
+              )
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-[9px] shrink-0">{task.owner ? `${task.owner.first_name.charAt(0)}${task.owner.last_name.charAt(0)}` : '?'}</div>
+                <span className="truncate max-w-[80px]">{task.owner ? task.owner.first_name : 'Brak'}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2 shrink-0">
             {task.attachments?.length > 0 && <Paperclip size={12} className="text-slate-400 dark:text-slate-500" />}
             {task.deadline && <div className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${isOverdue ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}><Clock size={10} /> {task.deadline.substring(5)}</div>}
           </div>
@@ -257,7 +252,8 @@ export default function TasksPage() {
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative overflow-hidden">
       <Sidebar />
-      <div className="flex-1 ml-64 p-4 md:p-8 transition-all flex flex-col h-screen">
+      <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all flex flex-col h-screen ml-16">
+        
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 shrink-0">
           <div><h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3 transition-colors"><CheckSquare className="text-green-500" size={32} /> Tablica Operacyjna</h1></div>
           {isAdmin && <button onClick={() => setIsModalOpen(true)} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all"><Plus size={20} /> Nowe Zadanie</button>}
@@ -272,6 +268,7 @@ export default function TasksPage() {
           </div>
         </div>
 
+        {/* WIDOK: TABLICA (DESKTOP) */}
         {viewMode === 'board' && (
           <div className="flex-1 flex gap-4 overflow-x-auto custom-scrollbar pb-4 items-start">
             {columns.map(col => (
@@ -282,9 +279,29 @@ export default function TasksPage() {
             ))}
           </div>
         )}
+
+        {/* WIDOK: LISTA PIONOWA (MOBILE / WYBÓR) */}
+        {viewMode === 'list' && (
+          <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-4 pr-2">
+            {columns.map(col => {
+              const colTasks = filteredTasks.filter((t: any) => t.status === col.id)
+              if (colTasks.length === 0) return null
+              return (
+                <div key={col.id} className="flex flex-col gap-3">
+                  <h3 className={`font-extrabold uppercase tracking-wider text-sm ${col.textColor} flex items-center gap-2 mb-1`}>
+                    {col.title} <span className="bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full text-xs">{colTasks.length}</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {colTasks.map((task: any) => <TaskCard key={task.id} task={task} />)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {/* --- SZUFLADA ZADANIA (TERAZ Z UPRAWNIENIAMI ADMINA I NATYWNYM DYSKIEM) --- */}
+      {/* --- SZUFLADA ZADANIA --- */}
       {isDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsDrawerOpen(false)} />}
       <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {selectedTask && (
@@ -295,7 +312,6 @@ export default function TasksPage() {
                   <option value="to_do">Do Zrobienia</option><option value="in_progress">W Toku</option><option value="done">Zrobione</option>
                 </select>
                 <div className="flex items-center gap-2">
-                  {/* PANEL WŁADZY ADMINA */}
                   {isAdmin && !isEditingTask && (
                     <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm mr-2">
                       <button onClick={startEditing} className="p-1 text-slate-400 hover:text-blue-500 transition-colors" title="Edytuj"><Edit2 size={16}/></button>
@@ -307,7 +323,6 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              {/* WIDOK EDYCJI vs WIDOK NORMALNY */}
               {isEditingTask ? (
                 <div className="space-y-3">
                   <input type="text" className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg text-sm font-bold text-slate-900 dark:text-white outline-none" value={editForm.title} onChange={(e) => setEditForm({...editForm, title: e.target.value})} />
@@ -340,7 +355,7 @@ export default function TasksPage() {
                   {selectedTask.description && <p className="text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 whitespace-pre-wrap">{selectedTask.description}</p>}
                   
                   <div className="flex flex-wrap gap-4 mt-4 text-xs font-bold text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1.5"><User size={14}/> {selectedTask.owner ? `${selectedTask.owner.first_name} ${selectedTask.owner.last_name}` : <span className="text-orange-500">Nieprzypisane (Do wzięcia)</span>}</div>
+                    <div className="flex items-center gap-1.5"><User size={14}/> {selectedTask.owner ? `${selectedTask.owner.first_name} ${selectedTask.owner.last_name}` : <span className="text-orange-500">Nieprzypisane</span>}</div>
                     {selectedTask.deadline && <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400"><Clock size={14}/> Termin: {selectedTask.deadline}</div>}
                   </div>
 
@@ -362,9 +377,9 @@ export default function TasksPage() {
                 </div>
               )}
 
-              {/* SEKACJA: ZAŁĄCZNIKI NATYWNE (SUPABASE STORAGE) */}
+              {/* ZAŁĄCZNIKI NATYWNE */}
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
-                <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Paperclip size={14}/> Załączniki (Natywny Dysk)</h3>
+                <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Paperclip size={14}/> Załączniki (Twój Dysk)</h3>
                 
                 <div className="space-y-2 mb-4">
                   {(!selectedTask.attachments || selectedTask.attachments.length === 0) ? (
@@ -383,12 +398,12 @@ export default function TasksPage() {
                   <input type="file" onChange={handleFileUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" />
                   <div className={`w-full py-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${isUploading ? 'border-slate-200 bg-slate-50' : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20'}`}>
                     {isUploading ? <Loader2 size={24} className="text-blue-500 animate-spin" /> : <UploadCloud size={24} className="text-blue-500" />}
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{isUploading ? 'Przesyłanie na serwer...' : 'Kliknij lub przeciągnij plik tutaj'}</span>
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{isUploading ? 'Wrzucanie do chmury...' : 'Kliknij lub upuść plik tutaj'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* SEKACJA: PODZADANIA */}
+              {/* PODZADANIA */}
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
                 <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><CheckSquare size={14}/> Podzadania</h3>
                 <div className="space-y-2 mb-4">
@@ -411,7 +426,6 @@ export default function TasksPage() {
 
       {isModalOpen && isAdmin && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          {/* Formularz dodawania bez zmian */}
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700">
             <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">Zleć Zadanie Operacyjne</h2>
