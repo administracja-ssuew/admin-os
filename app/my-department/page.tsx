@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud } from 'lucide-react'
+import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -50,6 +50,8 @@ export default function MyDepartmentPage() {
   const [petitionForm, setPetitionForm] = useState({ title: '', recipient: '', submission_date: '', status: 'Złożone' })
   const [selectedPetition, setSelectedPetition] = useState<any>(null)
   const [isPetitionDrawerOpen, setIsPetitionDrawerOpen] = useState(false)
+
+  const isAdmin = currentUser?.system_role === 'admin' || currentUser?.system_role === 'superadmin'
 
   useEffect(() => {
     fetchDepartmentData()
@@ -123,6 +125,13 @@ export default function MyDepartmentPage() {
   const updateArchiveStatus = async (id: string, newStatus: string) => {
     await supabase.from('archive_folders').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
   }
+  const deleteArchiveFolder = async (id: string) => {
+    if(!confirm('Czy na pewno chcesz usunąć tę teczkę?')) return
+    const toastId = toast.loading('Usuwanie...')
+    await supabase.from('archive_folders').delete().eq('id', id)
+    setIsFolderDrawerOpen(false); fetchDepartmentData(); toast.success('Usunięto', { id: toastId })
+  }
+
   const handleAddPetition = async (e: React.FormEvent) => {
     e.preventDefault(); setIsSubmittingPetition(true)
     await supabase.from('petitions').insert([{...petitionForm, submission_date: petitionForm.submission_date || new Date().toISOString().split('T')[0]}]); toast.success('Podanie dodane do rejestru!'); setIsPetitionModalOpen(false); setPetitionForm({ title: '', recipient: '', submission_date: '', status: 'Złożone' }); fetchDepartmentData(); setIsSubmittingPetition(false)
@@ -130,6 +139,12 @@ export default function MyDepartmentPage() {
   const updatePetitionStatus = async (id: string, newStatus: string) => {
     await supabase.from('petitions').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
     if(selectedPetition && selectedPetition.id === id) setSelectedPetition({...selectedPetition, status: newStatus})
+  }
+  const deletePetition = async (id: string) => {
+    if(!confirm('Czy na pewno chcesz usunąć to podanie?')) return
+    const toastId = toast.loading('Usuwanie...')
+    await supabase.from('petitions').delete().eq('id', id)
+    setIsPetitionDrawerOpen(false); fetchDepartmentData(); toast.success('Usunięto', { id: toastId })
   }
 
   const handleAiKBUpload = async (e: React.ChangeEvent<HTMLInputElement>, recordId: string, table: 'archive_folders' | 'petitions', currentRecord: any) => {
@@ -141,15 +156,23 @@ export default function MyDepartmentPage() {
       const fileExt = file.name.split('.').pop()
       const fileName = `${crypto.randomUUID()}.${fileExt}`
       const filePath = `aikb/${table}/${recordId}/${fileName}`
-      const { error: uploadError } = await supabase.storage.from('adminos-files').upload(filePath, file)
+      
+      // DODANO contentType ŻEBY PRZEGLĄDARKA OTWIERAŁA PDF/FOTKI A NIE POBIERAŁA W CIEMNO
+      const { error: uploadError } = await supabase.storage.from('adminos-files').upload(filePath, file, {
+        contentType: file.type 
+      })
       if (uploadError) throw uploadError
+
       const { data } = supabase.storage.from('adminos-files').getPublicUrl(filePath)
       const newAttachment = { id: crypto.randomUUID(), name: file.name, url: data.publicUrl, added_at: new Date().toISOString() }
       const updatedAttachments = [...(currentRecord.attachments || []), newAttachment]
+      
       const { error: updateError } = await supabase.from(table).update({ attachments: updatedAttachments }).eq('id', recordId)
       if (updateError) throw updateError
+
       if(table === 'archive_folders') setSelectedFolder({ ...selectedFolder, attachments: updatedAttachments })
       if(table === 'petitions') setSelectedPetition({ ...selectedPetition, attachments: updatedAttachments })
+      
       fetchDepartmentData()
       toast.success('Dokument podpięty!', { id: toastId })
     } catch (error) { toast.error('Błąd podczas wgrywania pliku', { id: toastId }) } finally { setIsUploading(false) }
@@ -165,11 +188,6 @@ export default function MyDepartmentPage() {
   }
   const updateGrantStatus = async (id: string, newStatus: string) => {
     await supabase.from('grants_radar').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
-  }
-  const calculateDaysLeft = (deadline: string) => {
-    if (!deadline) return '-'
-    const diffDays = Math.ceil(Math.abs(new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    return new Date(deadline) < new Date() ? `-${diffDays}` : diffDays
   }
 
   // === LOGIKA: LOGITECH ===
@@ -204,7 +222,6 @@ export default function MyDepartmentPage() {
     if (!department) return null
     const deptName = department.name.toLowerCase()
     
-    // 🟢 WIDOK: DOTACJE
     if (deptName.includes('dotacj')) {
       return (
         <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
@@ -234,7 +251,6 @@ export default function MyDepartmentPage() {
       )
     }
     
-    // 🟠 WIDOK: LOGITECH
     if (deptName.includes('logitech') || deptName.includes('logistyk')) {
       const { sorted: timelineData, maxVal } = getTimelineData()
       return (
@@ -288,7 +304,7 @@ export default function MyDepartmentPage() {
       )
     }
 
-    // 🟣 WIDOK: AiKB
+    // 🟣 WIDOK: AiKB (Archiwizacja i Pisma)
     if (deptName.includes('archiwizacj') || deptName.includes('bieżąc')) {
       return (
         <div className="flex flex-col gap-8">
@@ -355,21 +371,19 @@ export default function MyDepartmentPage() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {/* NAPRAWIONY LAYOUT KARTY TECZKI */}
                 {archiveFolders.map(folder => (
-                  <div key={folder.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col h-full group hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
-                    {/* POPRAWIONY LAYOUT - ZAPOBIEGANIE NAKŁADANIU SIĘ TEKSTU I STATUSU */}
-                    <div className="flex flex-col gap-2 mb-3">
-                      <div className="flex justify-between items-start">
-                        <select className={`w-max max-w-full truncate text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded outline-none border cursor-pointer ${folder.status === 'W przygotowaniu' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-400 dark:border-yellow-800' : 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800'}`} value={folder.status} onChange={(e) => updateArchiveStatus(folder.id, e.target.value)}>
-                          <option value="W przygotowaniu">W przygotowaniu</option>
-                          <option value="Przekazane do Archiwum">Zarchiwizowane</option>
-                        </select>
-                      </div>
-                      <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-snug break-words">{folder.title}</h3>
+                  <div key={folder.id} className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col justify-between gap-4 group hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
+                    <div>
+                      <select className={`mb-3 w-max max-w-full text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded outline-none border cursor-pointer ${folder.status === 'W przygotowaniu' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-400 dark:border-yellow-800' : 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800'}`} value={folder.status} onChange={(e) => updateArchiveStatus(folder.id, e.target.value)}>
+                        <option value="W przygotowaniu">W przygotowaniu</option>
+                        <option value="Przekazane do Archiwum">Zarchiwizowane</option>
+                      </select>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-relaxed break-words">{folder.title}</h3>
                     </div>
-                    <div className="flex justify-between items-end mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-1 text-xs font-bold text-slate-500"><Paperclip size={12}/> {folder.attachments?.length || 0} plików</div>
+                    <div className="flex justify-between items-end pt-3 border-t border-slate-200 dark:border-slate-700 mt-auto">
+                      <div className="flex items-center gap-1 text-xs font-bold text-slate-500"><Paperclip size={12}/> {folder.attachments?.length || 0}</div>
                       <button onClick={() => { setSelectedFolder(folder); setIsFolderDrawerOpen(true) }} className="text-xs font-bold text-orange-600 hover:underline">Zarządzaj wkładem</button>
                     </div>
                   </div>
@@ -450,7 +464,11 @@ export default function MyDepartmentPage() {
                 <select className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg px-3 py-1.5 outline-none shadow-sm" value={selectedFolder.status} onChange={(e) => updateArchiveStatus(selectedFolder.id, e.target.value)}>
                   <option value="W przygotowaniu">W przygotowaniu</option><option value="Przekazane do Archiwum">Zarchiwizowane</option>
                 </select>
-                <button onClick={() => setIsFolderDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
+                <div className="flex items-center gap-1">
+                  {/* ADMIN USUWANKO */}
+                  {isAdmin && <button onClick={() => deleteArchiveFolder(selectedFolder.id)} className="text-slate-400 hover:text-red-500 p-1 mr-2 transition-colors" title="Usuń Teczkę"><Trash2 size={18} /></button>}
+                  <button onClick={() => setIsFolderDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
+                </div>
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedFolder.title}</h2>
               <p className="text-xs font-mono text-slate-500">Utworzono: {selectedFolder.created_at.substring(0, 10)}</p>
@@ -493,7 +511,11 @@ export default function MyDepartmentPage() {
                 <select className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg px-3 py-1.5 outline-none shadow-sm" value={selectedPetition.status} onChange={(e) => updatePetitionStatus(selectedPetition.id, e.target.value)}>
                   <option value="Złożone">Złożone</option><option value="Zaakceptowane">Zaakceptowane</option><option value="Odrzucone">Odrzucone</option>
                 </select>
-                <button onClick={() => setIsPetitionDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
+                <div className="flex items-center gap-1">
+                  {/* ADMIN USUWANKO */}
+                  {isAdmin && <button onClick={() => deletePetition(selectedPetition.id)} className="text-slate-400 hover:text-red-500 p-1 mr-2 transition-colors" title="Usuń Podanie"><Trash2 size={18} /></button>}
+                  <button onClick={() => setIsPetitionDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
+                </div>
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedPetition.title}</h2>
               <p className="text-xs font-bold text-slate-500">Adresat: {selectedPetition.recipient}</p>
