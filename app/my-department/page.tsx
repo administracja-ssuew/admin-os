@@ -153,11 +153,11 @@ export default function MyDepartmentPage() {
     setIsUploading(true)
     const toastId = toast.loading('Wrzucanie pliku na serwer...')
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${crypto.randomUUID()}.${fileExt}`
-      const filePath = `aikb/${table}/${recordId}/${fileName}`
+      // ZAMIAST LOSOWEJ NAZWY, ROBIMY LOSOWY FOLDER I ORYGINALNĄ NAZWĘ
+      // Zamieniamy tylko ewentualne spacje na podłogi, żeby linki były "czyste"
+      const safeFileName = file.name.replace(/\s+/g, '_')
+      const filePath = `aikb/${table}/${recordId}/${crypto.randomUUID()}/${safeFileName}`
       
-      // DODANO contentType ŻEBY PRZEGLĄDARKA OTWIERAŁA PDF/FOTKI A NIE POBIERAŁA W CIEMNO
       const { error: uploadError } = await supabase.storage.from('adminos-files').upload(filePath, file, {
         contentType: file.type 
       })
@@ -175,7 +175,11 @@ export default function MyDepartmentPage() {
       
       fetchDepartmentData()
       toast.success('Dokument podpięty!', { id: toastId })
-    } catch (error) { toast.error('Błąd podczas wgrywania pliku', { id: toastId }) } finally { setIsUploading(false) }
+    } catch (error) { 
+      toast.error('Błąd podczas wgrywania pliku', { id: toastId }) 
+    } finally { 
+      setIsUploading(false) 
+    }
   }
 
 
