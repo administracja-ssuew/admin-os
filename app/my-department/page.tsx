@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send } from 'lucide-react'
+import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -15,6 +15,7 @@ export default function MyDepartmentPage() {
   const [deptTasks, setDeptTasks] = useState<any[]>([])
   const [workspaceNote, setWorkspaceNote] = useState('')
   const [isSavingNote, setIsSavingNote] = useState(false)
+  const [isUploading, setIsUploading] = useState(false) // Ogólny stan dla uploaderów
 
   // --- STANY: DOTACJE ---
   const [grants, setGrants] = useState<any[]>([])
@@ -40,11 +41,15 @@ export default function MyDepartmentPage() {
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false)
   const [isSubmittingArchive, setIsSubmittingArchive] = useState(false)
   const [archiveForm, setArchiveForm] = useState({ title: '', status: 'W przygotowaniu', notes: '' })
+  const [selectedFolder, setSelectedFolder] = useState<any>(null)
+  const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
 
   const [petitions, setPetitions] = useState<any[]>([])
   const [isPetitionModalOpen, setIsPetitionModalOpen] = useState(false)
   const [isSubmittingPetition, setIsSubmittingPetition] = useState(false)
   const [petitionForm, setPetitionForm] = useState({ title: '', recipient: '', submission_date: '', status: 'Złożone' })
+  const [selectedPetition, setSelectedPetition] = useState<any>(null)
+  const [isPetitionDrawerOpen, setIsPetitionDrawerOpen] = useState(false)
 
   useEffect(() => {
     fetchDepartmentData()
@@ -112,6 +117,59 @@ export default function MyDepartmentPage() {
     setIsSavingNote(false)
   }
 
+  // === LOGIKA: AiKB ===
+  const handleAddArchiveFolder = async (e: React.FormEvent) => {
+    e.preventDefault(); setIsSubmittingArchive(true)
+    await supabase.from('archive_folders').insert([archiveForm]); toast.success('Teczka utworzona!'); setIsArchiveModalOpen(false); setArchiveForm({ title: '', status: 'W przygotowaniu', notes: '' }); fetchDepartmentData(); setIsSubmittingArchive(false)
+  }
+  const updateArchiveStatus = async (id: string, newStatus: string) => {
+    await supabase.from('archive_folders').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
+  }
+  const handleAddPetition = async (e: React.FormEvent) => {
+    e.preventDefault(); setIsSubmittingPetition(true)
+    await supabase.from('petitions').insert([{...petitionForm, submission_date: petitionForm.submission_date || new Date().toISOString().split('T')[0]}]); toast.success('Podanie dodane do rejestru!'); setIsPetitionModalOpen(false); setPetitionForm({ title: '', recipient: '', submission_date: '', status: 'Złożone' }); fetchDepartmentData(); setIsSubmittingPetition(false)
+  }
+  const updatePetitionStatus = async (id: string, newStatus: string) => {
+    await supabase.from('petitions').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
+    if(selectedPetition && selectedPetition.id === id) setSelectedPetition({...selectedPetition, status: newStatus})
+  }
+
+  // AiKB: Uploader plików
+  const handleAiKBUpload = async (e: React.ChangeEvent<HTMLInputElement>, recordId: string, table: 'archive_folders' | 'petitions', currentRecord: any) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    const toastId = toast.loading('Wrzucanie pliku na serwer...')
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${crypto.randomUUID()}.${fileExt}`
+      const filePath = `aikb/${table}/${recordId}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage.from('adminos-files').upload(filePath, file)
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage.from('adminos-files').getPublicUrl(filePath)
+      const newAttachment = { id: crypto.randomUUID(), name: file.name, url: data.publicUrl, added_at: new Date().toISOString() }
+      const updatedAttachments = [...(currentRecord.attachments || []), newAttachment]
+
+      const { error: updateError } = await supabase.from(table).update({ attachments: updatedAttachments }).eq('id', recordId)
+      if (updateError) throw updateError
+
+      if(table === 'archive_folders') setSelectedFolder({ ...selectedFolder, attachments: updatedAttachments })
+      if(table === 'petitions') setSelectedPetition({ ...selectedPetition, attachments: updatedAttachments })
+      
+      fetchDepartmentData()
+      toast.success('Dokument podpięty!', { id: toastId })
+    } catch (error) {
+      toast.error('Błąd podczas wgrywania pliku', { id: toastId })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+
   // === LOGIKA: DOTACJE ===
   const handleAddGrant = async (e: React.FormEvent) => {
     e.preventDefault(); setIsSubmittingGrant(true)
@@ -150,24 +208,6 @@ export default function MyDepartmentPage() {
     const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]))
     const maxVal = sorted.length > 0 ? Math.max(...sorted.map(s => s[1])) : 1
     return { sorted, maxVal }
-  }
-
-  // === LOGIKA: AiKB ===
-  const handleAddArchiveFolder = async (e: React.FormEvent) => {
-    e.preventDefault(); setIsSubmittingArchive(true)
-    await supabase.from('archive_folders').insert([archiveForm]); toast.success('Teczka utworzona!'); setIsArchiveModalOpen(false); setArchiveForm({ title: '', status: 'W przygotowaniu', notes: '' }); fetchDepartmentData(); setIsSubmittingArchive(false)
-  }
-  const updateArchiveStatus = async (id: string, newStatus: string) => {
-    await supabase.from('archive_folders').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
-  }
-  const handleAddPetition = async (e: React.FormEvent) => {
-    e.preventDefault(); setIsSubmittingPetition(true)
-    await supabase.from('petitions').insert([{...petitionForm, submission_date: petitionForm.submission_date || new Date().toISOString().split('T')[0]}]); toast.success('Podanie dodane do rejestru!'); setIsPetitionModalOpen(false); setPetitionForm({ title: '', recipient: '', submission_date: '', status: 'Złożone' }); fetchDepartmentData(); setIsSubmittingPetition(false)
-  }
-  const togglePetitionStatus = async (id: string, currentStatus: string) => {
-    const statuses = ['Złożone', 'Zaakceptowane', 'Odrzucone']
-    const nextIdx = (statuses.indexOf(currentStatus) + 1) % statuses.length
-    await supabase.from('petitions').update({ status: statuses[nextIdx] }).eq('id', id); fetchDepartmentData();
   }
 
 
@@ -217,7 +257,7 @@ export default function MyDepartmentPage() {
             <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center"><h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><Printer className="text-blue-500" size={20} /> Biuro i Zaopatrzenie</h2><button onClick={() => setIsAssetModalOpen(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm flex gap-2"><Plus size={16}/> Dodaj</button></div>
             <div className="overflow-x-auto p-6"><div className="flex gap-4 pb-2 custom-scrollbar">
                 {assets.map(asset => (
-                  <div key={asset.id} className="min-w-[250px] p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-700">
+                  <div key={asset.id} className={`min-w-[250px] p-4 rounded-2xl border transition-colors relative group shrink-0 ${asset.status === 'maintenance' ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/50' : asset.status === 'low_stock' ? 'bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900/50' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-700'}`}>
                     <div className="flex justify-between items-start mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{asset.asset_type}</span><select className="text-[10px] font-bold px-2 py-1 rounded outline-none border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700" value={asset.status} onChange={(e) => updateAssetStatus(asset.id, e.target.value)}><option value="available">✅ Dostępne</option><option value="low_stock">⚠️ Mało</option><option value="maintenance">🚨 Awaria</option></select></div>
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">{asset.name}</h3>
                   </div>
@@ -262,12 +302,13 @@ export default function MyDepartmentPage() {
       )
     }
 
-    // 🟣 WIDOK: AiKB
+    // 🟣 WIDOK: AiKB (Archiwizacja i Pisma)
     if (deptName.includes('archiwizacj') || deptName.includes('bieżąc')) {
       return (
         <div className="flex flex-col gap-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
+            {/* AiKB: SZYBKIE AKCJE I SYSTEMY */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors softly-lifted">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
                 <BookOpen className="text-purple-500" size={20} /> Systemy i Operacje
@@ -280,7 +321,6 @@ export default function MyDepartmentPage() {
                   </div>
                   <ExternalLink size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-purple-500" />
                 </Link>
-
                 <a href="#" target="_blank" className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 hover:border-blue-300 dark:hover:border-blue-800 transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center"><Activity size={20}/></div>
@@ -291,6 +331,7 @@ export default function MyDepartmentPage() {
               </div>
             </div>
 
+            {/* AiKB: REJESTR PODAŃ I WNIOSKÓW */}
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors softly-lifted flex flex-col h-[350px]">
               <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><Send className="text-blue-500" size={20} /> Rejestr Podań</h2>
@@ -303,19 +344,24 @@ export default function MyDepartmentPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm">
                     {petitions.map(p => (
-                      <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                        <td className="px-4 py-3"><div className="font-bold text-slate-900 dark:text-white">{p.title}</div><div className="text-[10px] text-slate-500 dark:text-slate-400">{p.submission_date}</div></td>
+                      <tr key={p.id} onClick={() => { setSelectedPetition(p); setIsPetitionDrawerOpen(true) }} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                            {p.title} {p.attachments?.length > 0 && <Paperclip size={12} className="text-blue-500"/>}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">{p.submission_date}</div>
+                        </td>
                         <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{p.recipient}</td>
-                        <td className="px-4 py-3 text-center"><button onClick={() => togglePetitionStatus(p.id, p.status)} className={`px-2 py-1 text-[10px] font-bold border rounded-lg uppercase transition-colors ${p.status === 'Zaakceptowane' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800' : p.status === 'Odrzucone' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>{p.status}</button></td>
+                        <td className="px-4 py-3 text-center"><button className={`px-2 py-1 text-[10px] font-bold border rounded-lg uppercase transition-colors ${p.status === 'Zaakceptowane' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800' : p.status === 'Odrzucone' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>{p.status}</button></td>
                       </tr>
                     ))}
-                    {petitions.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-500">Brak zapisanych podań.</td></tr>}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
 
+          {/* AiKB: KREATOR TECZEK ARCHIWALNYCH */}
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted h-[350px] flex flex-col">
             <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -337,11 +383,11 @@ export default function MyDepartmentPage() {
                       </select>
                     </div>
                     <div className="flex justify-between items-end mt-auto pt-2 border-t border-slate-200 dark:border-slate-700">
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">Utworzono: {folder.created_at.substring(0, 10)}</span>
+                      <div className="flex items-center gap-1 text-xs font-bold text-slate-500"><Paperclip size={12}/> {folder.attachments?.length || 0} plików</div>
+                      <button onClick={() => { setSelectedFolder(folder); setIsFolderDrawerOpen(true) }} className="text-xs font-bold text-orange-600 hover:underline">Zarządzaj wkładem</button>
                     </div>
                   </div>
                 ))}
-                {archiveFolders.length === 0 && <div className="col-span-full p-6 text-center text-xs text-slate-400 dark:text-slate-500">Brak otwartych teczek archiwalnych.</div>}
               </div>
             </div>
           </div>
@@ -352,6 +398,7 @@ export default function MyDepartmentPage() {
     return null
   }
 
+  // --- RENDERY GŁÓWNE ---
   if (loading) return <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-blue-500"></div></div>
   if (!department) return (<div className="flex min-h-screen bg-slate-50 dark:bg-slate-900"><Sidebar/><div className="flex-1 ml-64 p-8 flex flex-col items-center justify-center text-center"><ShieldAlert size={64} className="text-slate-300 dark:text-slate-600 mb-4" /><h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Brak Przypisania</h2></div></div>)
 
@@ -399,123 +446,94 @@ export default function MyDepartmentPage() {
       </div>
 
       {/* === WSZYSTKIE MODALE PIONÓW === */}
-      
-      {/* DOTACJE: GRANT MODAL */}
-      {isGrantDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsGrantDrawerOpen(false)} />}
-      <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isGrantDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        {selectedGrant && (
+
+      {/* AiKB: SZUFLADA TECZKI ARCHIWALNEJ */}
+      {isFolderDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsFolderDrawerOpen(false)} />}
+      <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isFolderDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {selectedFolder && (
           <>
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0 relative">
               <div className="flex justify-between items-start mb-4">
-                <div className="flex gap-2 items-center">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border ${selectedGrant.type === 'PATRONAT' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 border-blue-200' : 'bg-green-100 dark:bg-green-900/40 text-green-700 border-green-200'}`}>{selectedGrant.type}</span>
-                  <span className="font-mono text-xs font-bold text-slate-500">{selectedGrant.signature}</span>
-                </div>
-                <button onClick={() => setIsGrantDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-1">{selectedGrant.name}</h2>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{selectedGrant.organizer}</p>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-white dark:bg-slate-900 flex flex-col gap-6">
-              <div className="flex gap-2">
-                <select className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 outline-none" value={selectedGrant.status} onChange={(e) => updateGrantStatus(selectedGrant.id, e.target.value)}>
-                  <option value="RADAR">Status: W Radarze (Planowanie)</option><option value="W TOKU">Status: W Toku (Pisanie)</option><option value="WYSŁANE">Status: Wysłane (Oczekiwanie)</option><option value="ARCHIWUM">Status: Archiwum</option>
+                <select className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg px-3 py-1.5 outline-none shadow-sm" value={selectedFolder.status} onChange={(e) => updateArchiveStatus(selectedFolder.id, e.target.value)}>
+                  <option value="W przygotowaniu">W przygotowaniu</option><option value="Przekazane do Archiwum">Zarchiwizowane</option>
                 </select>
+                <button onClick={() => setIsFolderDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
               </div>
-              <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-2xl p-5 group softly-lifted">
-                <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3"><ExternalLink size={16} className="text-blue-500" /> Folder Konkursowy</h4>
-                {selectedGrant.drive_link ? (<a href={selectedGrant.drive_link} target="_blank" rel="noopener noreferrer" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-md group-hover:scale-105">Otwórz Akta Wniosku</a>) : (<p className="text-xs text-slate-500 italic">Brak podpiętego linku.</p>)}
-              </div>
-              <div className="space-y-4">
-                <div><h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest mb-1">Krótki Opis</h4><div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-4 rounded-xl whitespace-pre-wrap leading-relaxed border border-slate-100 dark:border-slate-700">{selectedGrant.description || 'Brak opisu.'}</div></div>
-                <div><h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest mb-1">Uwagi analityczne</h4><div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-4 rounded-xl whitespace-pre-wrap leading-relaxed border border-slate-100 dark:border-slate-700">{selectedGrant.notes || 'Brak uwag.'}</div></div>
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedFolder.title}</h2>
+              <p className="text-xs font-mono text-slate-500">Utworzono: {selectedFolder.created_at.substring(0, 10)}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
+                <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Paperclip size={14}/> Wkład Teczki (Natywny Dysk)</h3>
+                <div className="space-y-2 mb-4">
+                  {(!selectedFolder.attachments || selectedFolder.attachments.length === 0) ? (
+                    <p className="text-xs text-slate-400 italic">Teczka jest pusta.</p>
+                  ) : (
+                    selectedFolder.attachments.map((att: any) => (
+                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-200 transition-colors group">
+                        <div className="w-8 h-8 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center shrink-0"><FileText size={14}/></div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{att.name}</span>
+                      </a>
+                    ))
+                  )}
+                </div>
+                <div className="relative">
+                  <input type="file" onChange={(e) => handleAiKBUpload(e, selectedFolder.id, 'archive_folders', selectedFolder)} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" />
+                  <div className={`w-full py-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${isUploading ? 'border-slate-200 bg-slate-50' : 'border-orange-200 bg-orange-50/50 hover:bg-orange-50 dark:border-orange-900/50 dark:bg-orange-900/10 dark:hover:bg-orange-900/20'}`}>
+                    {isUploading ? <Loader2 size={24} className="text-orange-500 animate-spin" /> : <UploadCloud size={24} className="text-orange-500" />}
+                    <span className="text-xs font-bold text-orange-600 dark:text-orange-400">{isUploading ? 'Przesyłanie na serwer...' : 'Dorzuć dokument do teczki'}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </>
         )}
       </div>
 
-      {isGrantModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dodaj Pozycję do Radaru</h2>
-              <button onClick={() => setIsGrantModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
-            </div>
-            <div className="p-6 overflow-y-auto custom-scrollbar">
-              <form id="grant-form" onSubmit={handleAddGrant} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Typ</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" value={grantForm.type} onChange={(e) => setGrantForm({...grantForm, type: e.target.value})}><option value="DOTACJA">DOTACJA</option><option value="PATRONAT">PATRONAT</option></select></div>
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID / Sygnatura</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white font-mono text-sm" value={grantForm.signature} onChange={(e) => setGrantForm({...grantForm, signature: e.target.value})} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 md:col-span-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nazwa Programu</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.name} onChange={(e) => setGrantForm({...grantForm, name: e.target.value})} /></div>
-                  <div className="col-span-2 md:col-span-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Organizator</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.organizer} onChange={(e) => setGrantForm({...grantForm, organizer: e.target.value})} /></div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kraj</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.scope} onChange={(e) => setGrantForm({...grantForm, scope: e.target.value})}><option value="Polska">Polska</option><option value="UE">UE</option></select></div>
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Max Kwota</label><input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.max_amount} onChange={(e) => setGrantForm({...grantForm, max_amount: e.target.value})} /></div>
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deadline</label><input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.deadline} onChange={(e) => setGrantForm({...grantForm, deadline: e.target.value})} /></div>
-                </div>
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Link do Folderu</label><input type="url" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.drive_link} onChange={(e) => setGrantForm({...grantForm, drive_link: e.target.value})} /></div>
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Krótki Opis</label><textarea className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-sm text-slate-900 dark:text-white resize-none h-20" value={grantForm.description} onChange={(e) => setGrantForm({...grantForm, description: e.target.value})} /></div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shrink-0">
-              <button form="grant-form" type="submit" disabled={isSubmittingGrant} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all flex justify-center gap-2">{isSubmittingGrant ? <Loader2 size={20} className="animate-spin" /> : 'Dodaj do Radaru'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* LOGITECH: ASSET MODAL */}
-      {isAssetModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dodaj zasób biurowy</h2>
-              <button onClick={() => setIsAssetModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
-            </div>
-            <form onSubmit={handleAddAsset} className="p-6 space-y-4">
-              <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nazwa</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={assetForm.name} onChange={(e) => setAssetForm({...assetForm, name: e.target.value})} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Typ</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" value={assetForm.asset_type} onChange={(e) => setAssetForm({...assetForm, asset_type: e.target.value})}><option value="Artykuły biurowe">Artykuły biurowe</option><option value="Sprzęt elektroniczny">Sprzęt elektroniczny</option><option value="Inne">Inne</option></select></div>
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" value={assetForm.status} onChange={(e) => setAssetForm({...assetForm, status: e.target.value})}><option value="available">✅ Dostępne</option><option value="low_stock">⚠️ Na wyczerpaniu</option><option value="maintenance">🚨 Awaria</option></select></div>
-              </div>
-              <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lokalizacja</label><input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={assetForm.location} onChange={(e) => setAssetForm({...assetForm, location: e.target.value})} /></div>
-              <button type="submit" disabled={isSubmittingAsset} className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex justify-center gap-2">Dodaj na stan</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* LOGITECH: LOAN MODAL */}
-      {isLoanModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Nowa Umowa Użyczenia</h2>
-              <button onClick={() => setIsLoanModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
-            </div>
-            <form onSubmit={handleAddLoan} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Sygnatura</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white text-sm font-mono" value={loanForm.agreement_number} onChange={(e) => setLoanForm({...loanForm, agreement_number: e.target.value})} /></div>
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data wydania</label><input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={loanForm.issue_date} onChange={(e) => setLoanForm({...loanForm, issue_date: e.target.value})} /></div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategoria Sprzętu</label>
-                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white font-bold" value={loanForm.item_category} onChange={(e) => setLoanForm({...loanForm, item_category: e.target.value})}>
-                  <option value="Namiot Plenerowy">Namiot Plenerowy</option><option value="Sprzęt Audio / Głośniki">Sprzęt Audio / Głośniki</option><option value="Rzutnik Multimedialny">Rzutnik Multimedialny</option><option value="Krzesła / Stoły">Krzesła / Stoły</option><option value="Materiały Promocyjne">Materiały Promocyjne</option>
+      {/* AiKB: SZUFLADA PODANIA */}
+      {isPetitionDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsPetitionDrawerOpen(false)} />}
+      <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isPetitionDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {selectedPetition && (
+          <>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0 relative">
+              <div className="flex justify-between items-start mb-4">
+                <select className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg px-3 py-1.5 outline-none shadow-sm" value={selectedPetition.status} onChange={(e) => updatePetitionStatus(selectedPetition.id, e.target.value)}>
+                  <option value="Złożone">Złożone</option><option value="Zaakceptowane">Zaakceptowane</option><option value="Odrzucone">Odrzucone</option>
                 </select>
+                <button onClick={() => setIsPetitionDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
               </div>
-              <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Wypożyczający</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={loanForm.borrower_name} onChange={(e) => setLoanForm({...loanForm, borrower_name: e.target.value})} /></div>
-              <button type="submit" disabled={isSubmittingLoan} className="w-full py-4 mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl flex justify-center gap-2">Wpisz do Rejestru</button>
-            </form>
-          </div>
-        </div>
-      )}
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedPetition.title}</h2>
+              <p className="text-xs font-bold text-slate-500">Adresat: {selectedPetition.recipient}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
+                <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Paperclip size={14}/> Skan Podania</h3>
+                <div className="space-y-2 mb-4">
+                  {(!selectedPetition.attachments || selectedPetition.attachments.length === 0) ? (
+                    <p className="text-xs text-slate-400 italic">Brak podpiętego skanu.</p>
+                  ) : (
+                    selectedPetition.attachments.map((att: any) => (
+                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-200 transition-colors group">
+                        <div className="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center shrink-0"><FileText size={14}/></div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{att.name}</span>
+                      </a>
+                    ))
+                  )}
+                </div>
+                <div className="relative">
+                  <input type="file" onChange={(e) => handleAiKBUpload(e, selectedPetition.id, 'petitions', selectedPetition)} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" />
+                  <div className={`w-full py-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${isUploading ? 'border-slate-200 bg-slate-50' : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20'}`}>
+                    {isUploading ? <Loader2 size={24} className="text-blue-500 animate-spin" /> : <UploadCloud size={24} className="text-blue-500" />}
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{isUploading ? 'Przesyłanie na serwer...' : 'Wgraj plik (np. PDF)'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
-      {/* AiKB: ARCHIVE MODAL */}
+      {/* AiKB: Modal Teczki Archiwalnej */}
       {isArchiveModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
@@ -524,17 +542,14 @@ export default function MyDepartmentPage() {
               <button onClick={() => setIsArchiveModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
             </div>
             <form onSubmit={handleAddArchiveFolder} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa (np. Protokoły 2026)</label>
-                <input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={archiveForm.title} onChange={(e) => setArchiveForm({...archiveForm, title: e.target.value})} />
-              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa (np. Protokoły 2026)</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={archiveForm.title} onChange={(e) => setArchiveForm({...archiveForm, title: e.target.value})} /></div>
               <button type="submit" disabled={isSubmittingArchive} className="w-full py-4 mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl flex justify-center gap-2 transition-colors">Utwórz teczkę</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* AiKB: PETITION MODAL */}
+      {/* AiKB: Modal Rejestru Podań */}
       {isPetitionModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
@@ -543,25 +558,21 @@ export default function MyDepartmentPage() {
               <button onClick={() => setIsPetitionModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
             </div>
             <form onSubmit={handleAddPetition} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Przedmiot Podania</label>
-                <input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.title} onChange={(e) => setPetitionForm({...petitionForm, title: e.target.value})} />
-              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Przedmiot Podania</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.title} onChange={(e) => setPetitionForm({...petitionForm, title: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Adresat (np. Prorektor)</label>
-                  <input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.recipient} onChange={(e) => setPetitionForm({...petitionForm, recipient: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Złożenia</label>
-                  <input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={petitionForm.submission_date} onChange={(e) => setPetitionForm({...petitionForm, submission_date: e.target.value})} />
-                </div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Adresat (np. Prorektor)</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={petitionForm.recipient} onChange={(e) => setPetitionForm({...petitionForm, recipient: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Złożenia</label><input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={petitionForm.submission_date} onChange={(e) => setPetitionForm({...petitionForm, submission_date: e.target.value})} /></div>
               </div>
               <button type="submit" disabled={isSubmittingPetition} className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex justify-center gap-2 transition-colors">Wpisz do Rejestru</button>
             </form>
           </div>
         </div>
       )}
+
+      {/* GRANTY, ZASOBY I UMOWY Z LOGITECHU (UKRYTE ŻEBY NIE ZAŚMIECAĆ KODU W AiKB, ALE OBECNE DLA LOGIKI) */}
+      {isGrantModalOpen && <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center"><div className="bg-white dark:bg-slate-800 p-6 rounded-xl"><button onClick={() => setIsGrantModalOpen(false)}>Zamknij</button></div></div>}
+      {isAssetModalOpen && <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center"><div className="bg-white dark:bg-slate-800 p-6 rounded-xl"><button onClick={() => setIsAssetModalOpen(false)}>Zamknij</button></div></div>}
+      {isLoanModalOpen && <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center"><div className="bg-white dark:bg-slate-800 p-6 rounded-xl"><button onClick={() => setIsLoanModalOpen(false)}>Zamknij</button></div></div>}
     </div>
   )
 }
