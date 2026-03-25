@@ -236,8 +236,6 @@ export default function PublicIntakePage() {
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">KATEGORIA SPRAWY</label>
                       <select className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900" value={formData.case_type} onChange={(e) => setFormData({...formData, case_type: e.target.value})}>
-                        <option value="Zasoby / Sprzęt">Wypożyczenie sprzętu (Logitech)</option>
-                        <option value="Dotacja / Finanse">Wniosek o dofinansowanie</option>
                         <option value="Administracyjna">Sprawa ogólna / Administracyjna</option>
                       </select>
                     </div>
