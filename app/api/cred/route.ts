@@ -1,25 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies()
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+  if (!token) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        storage: {
-          getItem: (key: string) => cookieStore.get(key)?.value ?? null,
-          setItem: () => {},
-          removeItem: () => {},
-        },
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
+  const { data: { user } } = await supabase.auth.getUser(token)
+  if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -29,7 +22,7 @@ export async function GET(request: Request) {
   const qs = new URLSearchParams({
     ...params,
     token: process.env.CRED_TOKEN!,
-    autor: session.user.email!,
+    autor: user.email!,
   }).toString()
 
   const res = await fetch(`${process.env.CRED_API_URL}?${qs}`)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import {
   FileText, RefreshCw, ChevronDown, ChevronUp,
@@ -21,9 +22,12 @@ const STATUSY = [
 ]
 
 // ─── HELPERS ─────────────────────────────────────────────────────
-function credFetch(params: Record<string, string>) {
+async function credFetch(params: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession()
   const qs = new URLSearchParams({ ...params }).toString()
-  return fetch(`${CRED_URL}?${qs}`).then(r => r.json())
+  return fetch(`${CRED_URL}?${qs}`, {
+    headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+  }).then(r => r.json())
 }
 
 function slaClass(state: string) {
