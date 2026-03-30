@@ -11,8 +11,7 @@ import {
 
 // ─── KONFIGURACJA ────────────────────────────────────────────────
 // Wklej URL swojego wdrożonego Apps Script (Wdróż → Aplikacja internetowa)
-const CRED_URL   = process.env.NEXT_PUBLIC_CRED_API_URL || 'WKLEJ_URL_APPS_SCRIPT'
-const CRED_TOKEN = process.env.NEXT_PUBLIC_CRED_TOKEN   || 'ZMIEN_NA_SWOJ_TOKEN_32_ZNAKI'
+const CRED_URL = '/api/cred'
 
 // Dostępne statusy do zmiany
 const STATUSY = [
@@ -23,7 +22,7 @@ const STATUSY = [
 
 // ─── HELPERS ─────────────────────────────────────────────────────
 function credFetch(params: Record<string, string>) {
-  const qs = new URLSearchParams({ ...params, token: CRED_TOKEN }).toString()
+  const qs = new URLSearchParams({ ...params }).toString()
   return fetch(`${CRED_URL}?${qs}`).then(r => r.json())
 }
 
