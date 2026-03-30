@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '../lib/supabase'
-import { Moon, Sun, LogOut } from 'lucide-react'
+import { Moon, Sun, LogOut, FileText } from 'lucide-react'
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -71,7 +71,7 @@ export default function Sidebar() {
         <Link href="/calendar" className={getLinkStyle('/calendar')}>🗓️ Kalendarz</Link>
         <Link href="/cases" className={getLinkStyle('/cases')}>📁 Rejestr Spraw</Link>
         <Link href="/tasks" className={getLinkStyle('/tasks')}>✅ Zadania</Link>
-        <Link href="/cred" className={getLinkStyle('/cred')}>CRED</Link>
+        <Link href="/cred" className={getLinkStyle('/cred')}><span className="flex items-center gap-2"><FileText size={16} />CRED</span></Link>
         <Link href="/meetings" className={getLinkStyle('/meetings')}>📅 Zebrania</Link>
         <Link href="/knowledge" className={getLinkStyle('/knowledge')}>💡 Baza Wiedzy</Link>
 
