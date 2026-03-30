@@ -71,6 +71,7 @@ export default function Sidebar() {
         <Link href="/calendar" className={getLinkStyle('/calendar')}>🗓️ Kalendarz</Link>
         <Link href="/cases" className={getLinkStyle('/cases')}>📁 Rejestr Spraw</Link>
         <Link href="/tasks" className={getLinkStyle('/tasks')}>✅ Zadania</Link>
+        <Link href="/cred" className={getLinkStyle('/cred')}>CRED</Link>
         <Link href="/meetings" className={getLinkStyle('/meetings')}>📅 Zebrania</Link>
         <Link href="/knowledge" className={getLinkStyle('/knowledge')}>💡 Baza Wiedzy</Link>
 
