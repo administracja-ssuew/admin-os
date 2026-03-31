@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud, Trash2 } from 'lucide-react'
+import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud, Trash2, ClipboardList, CheckCheck, AlertTriangle, Eye } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -24,6 +24,15 @@ export default function MyDepartmentPage() {
   const [grantForm, setGrantForm] = useState({ signature: '', name: '', organizer: '', type: 'DOTACJA', max_amount: '', scope: 'Polska', deadline: '', status: 'RADAR', decision: 'OCZEKUJE', owner_id: '', drive_link: '', description: '', notes: '' })
   const [selectedGrant, setSelectedGrant] = useState<any>(null)
   const [isGrantDrawerOpen, setIsGrantDrawerOpen] = useState(false)
+
+  // --- STANY: CZŁONKOWIE DEPARTAMENTU ---
+  const [deptMembers, setDeptMembers] = useState<any[]>([])
+
+  // --- STANY: RAPORTY ---
+  const [reports, setReports] = useState<any[]>([])
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const [reportForm, setReportForm] = useState({ title: '', content: '' })
 
   // --- STANY: LOGITECH ---
   const [assets, setAssets] = useState<any[]>([])
@@ -70,8 +79,9 @@ export default function MyDepartmentPage() {
         setDepartment(userDept)
 
         if (userDept) {
-          const { data: members } = await supabase.from('users').select('id').eq('department_id', userDept.id)
+          const { data: members } = await supabase.from('users').select('id, first_name, last_name').eq('department_id', userDept.id)
           const memberIds = members?.map(m => m.id) || []
+          setDeptMembers(members || [])
           
           let tasksQuery = supabase.from('tasks').select('*, users!tasks_owner_id_fkey(first_name, last_name)').neq('status', 'done').order('deadline', { ascending: true })
           if (memberIds.length > 0) { tasksQuery = tasksQuery.or(`department_id.eq.${userDept.id},owner_id.in.(${memberIds.join(',')})`) } 
@@ -95,6 +105,8 @@ export default function MyDepartmentPage() {
             if (assetsData) setAssets(assetsData)
             const { data: loansData } = await supabase.from('equipment_loans').select('*').order('issue_date', { ascending: false })
             if (loansData) setLoans(loansData)
+            const { data: reportsData } = await supabase.from('reports').select('*, submitted_by_user:users!reports_submitted_by_fkey(first_name, last_name)').eq('subcommittee_type', 'logistics').order('submitted_at', { ascending: false })
+            if (reportsData) setReports(reportsData)
           }
 
           if (deptName.includes('archiwizacj') || deptName.includes('bieżąc')) {
@@ -115,6 +127,46 @@ export default function MyDepartmentPage() {
     const { error } = await supabase.from('department_notes').update({ content: workspaceNote, updated_at: new Date().toISOString() }).eq('department_id', department.id)
     if (!error) toast.success('Przestrzeń robocza zapisana!')
     setIsSavingNote(false)
+  }
+
+  // === LOGIKA: ZADANIA DEPARTAMENTU ===
+  const updateDeptTaskStatus = async (taskId: string, newStatus: string) => {
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+    fetchDepartmentData()
+  }
+
+  const updateTaskAssignee = async (taskId: string, userId: string) => {
+    await supabase.from('tasks').update({ owner_id: userId || null }).eq('id', taskId)
+    toast.success('Zadanie przypisane!')
+    fetchDepartmentData()
+  }
+
+  // === LOGIKA: RAPORTY ===
+  const handleAddReport = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUser) return
+    setIsSubmittingReport(true)
+    const { error } = await supabase.from('reports').insert([{
+      title: reportForm.title,
+      content: reportForm.content,
+      submitted_by: currentUser.id,
+      subcommittee_type: 'logistics',
+      status: 'new',
+    }])
+    if (!error) {
+      toast.success('Raport złożony!')
+      setIsReportModalOpen(false)
+      setReportForm({ title: '', content: '' })
+      fetchDepartmentData()
+    } else {
+      toast.error('Błąd zapisu raportu')
+    }
+    setIsSubmittingReport(false)
+  }
+
+  const updateReportStatus = async (id: string, newStatus: string) => {
+    await supabase.from('reports').update({ status: newStatus }).eq('id', id)
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r))
   }
 
   // === LOGIKA: AiKB ===
@@ -271,6 +323,14 @@ export default function MyDepartmentPage() {
     
     if (deptName.includes('logitech') || deptName.includes('logistyk')) {
       const { sorted: timelineData, maxVal } = getTimelineData()
+
+      const reportStatusConfig: Record<string, { label: string; cls: string }> = {
+        new:             { label: 'Nowy',          cls: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800' },
+        read:            { label: 'Przeczytany',   cls: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' },
+        requires_action: { label: 'Wymaga akcji',  cls: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800' },
+        archived:        { label: 'Zarchiwizowany',cls: 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-900 dark:text-slate-500 dark:border-slate-800' },
+      }
+
       return (
         <div className="flex flex-col gap-8">
           <div className="flex flex-col bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
@@ -318,6 +378,68 @@ export default function MyDepartmentPage() {
               </div>
             </div>
           </div>
+
+          {/* ─── RAPORTY LOGISTYCZNE ─────────────────────────────── */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted flex flex-col">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ClipboardList className="text-violet-500" size={20} /> Raporty Logistyczne
+              </h2>
+              <button onClick={() => setIsReportModalOpen(true)} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl text-sm flex items-center gap-2 shadow-md shadow-violet-500/20 transition-all">
+                <Plus size={16} /> Złóż Raport
+              </button>
+            </div>
+
+            {reports.length === 0 ? (
+              <div className="p-10 text-center text-slate-400 dark:text-slate-500 text-sm font-medium">
+                Brak złożonych raportów w tej podkomisji.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {reports.map(report => {
+                  const cfg = reportStatusConfig[report.status] ?? reportStatusConfig.new
+                  return (
+                    <div key={report.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+                      <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${report.status === 'requires_action' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' : report.status === 'read' ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' : 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'}`}>
+                        {report.status === 'requires_action' ? <AlertTriangle size={16} /> : report.status === 'read' ? <CheckCheck size={16} /> : <FileText size={16} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight">{report.title}</h3>
+                          <select
+                            value={report.status}
+                            onChange={(e) => updateReportStatus(report.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border outline-none cursor-pointer shrink-0 transition-colors ${cfg.cls}`}
+                          >
+                            <option value="new">Nowy</option>
+                            <option value="read">Przeczytany</option>
+                            <option value="requires_action">Wymaga akcji</option>
+                            <option value="archived">Zarchiwizowany</option>
+                          </select>
+                        </div>
+                        {report.content && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{report.content}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                          {report.submitted_by_user && (
+                            <span className="flex items-center gap-1">
+                              <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400 flex items-center justify-center text-[8px] font-bold">
+                                {report.submitted_by_user.first_name.charAt(0)}{report.submitted_by_user.last_name.charAt(0)}
+                              </div>
+                              {report.submitted_by_user.first_name} {report.submitted_by_user.last_name}
+                            </span>
+                          )}
+                          <span>{new Date(report.submitted_at).toLocaleDateString('pl-PL')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
       )
     }
@@ -452,18 +574,88 @@ export default function MyDepartmentPage() {
                 <Link href="/tasks" className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Kanban</Link>
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
-                {deptTasks.length > 0 ? deptTasks.map(task => (
-                  <Link key={task.id} href="/tasks" className="block p-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-700 transition-colors group">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1 group-hover:text-blue-500 transition-colors leading-tight">{task.title}</h3>
-                    <div className="flex justify-between items-center text-[10px] font-bold">
-                      {task.users ? (
-                        <span className="text-slate-500 dark:text-slate-400">{task.users.first_name} {task.users.last_name}</span>
-                      ) : (
-                        <span className="text-orange-500 animate-pulse">✋ Do wzięcia!</span>
+                {deptTasks.length > 0 ? deptTasks.map(task => {
+                  const isOverdue = task.deadline && new Date(task.deadline) < new Date()
+                  const statusColors: Record<string, string> = {
+                    to_do: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600',
+                    in_progress: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800',
+                    done: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800',
+                  }
+                  const statusLabel: Record<string, string> = { to_do: 'Do zrobienia', in_progress: 'W toku', done: 'Gotowe' }
+                  return (
+                    <div key={task.id} className="p-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-700/50 transition-colors">
+                      {/* Nagłówek: status + priorytet */}
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <select
+                          value={task.status}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { e.stopPropagation(); updateDeptTaskStatus(task.id, e.target.value) }}
+                          className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border outline-none cursor-pointer transition-colors ${statusColors[task.status] || statusColors.to_do}`}
+                        >
+                          <option value="to_do">Do zrobienia</option>
+                          <option value="in_progress">W toku</option>
+                          <option value="done">Gotowe</option>
+                        </select>
+                        {task.deadline && (
+                          <span className={`text-[9px] font-bold flex items-center gap-0.5 ${isOverdue ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                            <Clock size={10} /> {task.deadline.substring(5)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tytuł */}
+                      <Link href="/tasks">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-2 leading-tight hover:text-blue-500 dark:hover:text-blue-400 transition-colors">{task.title}</h3>
+                      </Link>
+
+                      {/* Pasek postępu */}
+                      {task.completion_percentage > 0 && (
+                        <div className="mb-2">
+                          <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 mb-0.5">
+                            <span>Postęp</span><span>{task.completion_percentage}%</span>
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden">
+                            <div className="bg-green-500 h-1 rounded-full transition-all duration-500" style={{ width: `${task.completion_percentage}%` }} />
+                          </div>
+                        </div>
                       )}
+
+                      {/* Assignee */}
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {task.users ? (
+                          <>
+                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[9px] font-bold shrink-0">
+                              {task.users.first_name.charAt(0)}{task.users.last_name.charAt(0)}
+                            </div>
+                            <select
+                              value={task.owner_id || ''}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => updateTaskAssignee(task.id, e.target.value)}
+                              className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-transparent border-none outline-none cursor-pointer truncate max-w-[140px]"
+                            >
+                              <option value="">(nieprzypisane)</option>
+                              {deptMembers.map(m => (
+                                <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                              ))}
+                            </select>
+                          </>
+                        ) : (
+                          <select
+                            value=""
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => { if (e.target.value) updateTaskAssignee(task.id, e.target.value) }}
+                            className="text-[10px] font-bold text-orange-500 bg-transparent border-none outline-none cursor-pointer w-full"
+                          >
+                            <option value="">✋ Przypisz do osoby...</option>
+                            {deptMembers.map(m => (
+                              <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
-                  </Link>
-                )) : (<div className="text-center p-6 text-slate-400 text-xs">Brak aktywnych zadań w zespole.</div>)}
+                  )
+                }) : (<div className="text-center p-6 text-slate-400 text-xs">Brak aktywnych zadań w zespole.</div>)}
               </div>
             </div>
           </div>
@@ -597,6 +789,51 @@ export default function MyDepartmentPage() {
                 <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Złożenia</label><input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={petitionForm.submission_date} onChange={(e) => setPetitionForm({...petitionForm, submission_date: e.target.value})} /></div>
               </div>
               <button type="submit" disabled={isSubmittingPetition} className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex justify-center gap-2 transition-colors">Wpisz do Rejestru</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RAPORTY LOGISTYCZNE: Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ClipboardList className="text-violet-500" size={22} /> Złóż Raport Logistyczny
+              </h2>
+              <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddReport} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Temat Raportu</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="np. Stan zapasów materiałów biurowych — marzec 2026"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500/20 text-slate-900 dark:text-white transition-all"
+                  value={reportForm.title}
+                  onChange={(e) => setReportForm({ ...reportForm, title: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Treść / Opis sytuacji</label>
+                <textarea
+                  rows={5}
+                  placeholder="Opisz sytuację logistyczną, problemy, rekomendacje..."
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500/20 text-slate-900 dark:text-white resize-none custom-scrollbar transition-all"
+                  value={reportForm.content}
+                  onChange={(e) => setReportForm({ ...reportForm, content: e.target.value })}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmittingReport}
+                className="w-full py-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-violet-500/20 transition-all disabled:opacity-70"
+              >
+                {isSubmittingReport ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                Złóż Raport
+              </button>
             </form>
           </div>
         </div>

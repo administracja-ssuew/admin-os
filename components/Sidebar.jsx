@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '../lib/supabase'
-import { Moon, Sun, LogOut, FileText } from 'lucide-react'
+import { Moon, Sun, LogOut, FileText, Lightbulb } from 'lucide-react'
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -79,6 +79,9 @@ export default function Sidebar() {
         {(userRole === 'admin' || userRole === 'superadmin') && (
           <div className="pt-4 mt-4 border-t border-slate-800">
             <Link href="/users" className={getLinkStyle('/users')}>👥 Kadry i Weryfikacja</Link>
+            <Link href="/brainstorm" className={getLinkStyle('/brainstorm') + ' mt-2'}>
+              <span className="flex items-center gap-2"><Lightbulb size={16} />Burza Mózgów</span>
+            </Link>
             <Link href="/executive" className={isActive('/executive') 
               ? 'block py-3 px-4 rounded-lg bg-slate-700 text-white font-bold shadow-md transition-all border border-slate-600 mt-2' 
               : 'block py-3 px-4 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium mt-2'}>
