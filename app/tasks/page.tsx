@@ -6,7 +6,7 @@ import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
 import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Building2, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { Task, AppUser, Department, Case } from '../../types'
+import type { Task, TaskStatus, AppUser, Department, Case } from '../../types'
 
 export default function TasksPage() {
   const { user: currentUser, isAdmin } = useCurrentUser()
@@ -79,7 +79,7 @@ export default function TasksPage() {
     const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
     if (!error) {
       fetchData()
-      if (selectedTask && selectedTask.id === taskId) setSelectedTask({ ...selectedTask, status: newStatus })
+      if (selectedTask && selectedTask.id === taskId) setSelectedTask({ ...selectedTask, status: newStatus as TaskStatus })
     }
   }
 
@@ -93,6 +93,7 @@ export default function TasksPage() {
   }
 
   const startEditing = () => {
+    if (!selectedTask) return
     setEditForm({
       title: selectedTask.title, description: selectedTask.description || '', owner_id: selectedTask.owner_id || '',
       department_id: selectedTask.department_id || '', deadline: selectedTask.deadline || '', priority: selectedTask.priority
@@ -101,6 +102,7 @@ export default function TasksPage() {
   }
 
   const saveTaskEdit = async () => {
+    if (!selectedTask) return
     const toastId = toast.loading('Zapisywanie zmian...')
     const { error } = await supabase.from('tasks').update({
       title: editForm.title, description: editForm.description, owner_id: editForm.owner_id || null,
@@ -116,6 +118,7 @@ export default function TasksPage() {
   }
 
   const deleteTask = async () => {
+    if (!selectedTask) return
     if(!confirm('Czy na pewno chcesz usunąć to zadanie? (Nie da się tego cofnąć)')) return
     const toastId = toast.loading('Usuwanie...')
     const { error } = await supabase.from('tasks').delete().eq('id', selectedTask.id)

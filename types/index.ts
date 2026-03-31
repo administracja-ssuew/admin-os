@@ -62,7 +62,14 @@ export type TaskPriority = 'low' | 'medium' | 'high'
 export interface ChecklistItem {
   id: string
   text: string
-  done: boolean
+  completed: boolean
+}
+
+export interface TaskAttachment {
+  id: string
+  name: string
+  url: string
+  added_at: string
 }
 
 export interface Task {
@@ -77,13 +84,16 @@ export interface Task {
   case_id: string | null
   deadline: string | null
   checklists: ChecklistItem[]
-  attachments: string[]
+  attachments: TaskAttachment[]
   completion_percentage: number
   created_at: string
+  updated_at?: string
   // relacje
+  owner?: { first_name: string; last_name: string } | null
   users?: { first_name: string; last_name: string } | null
   departments?: { name: string } | null
   projects?: { name: string } | null
+  cases?: { title: string; case_number: string } | null
 }
 
 // ─── SPOTKANIA ───────────────────────────────────────────────────
