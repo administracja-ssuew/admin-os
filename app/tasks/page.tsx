@@ -2,29 +2,35 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
 import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Building2, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
+import type { Task, AppUser, Department, Case } from '../../types'
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<any[]>([])
-  const [users, setUsers] = useState<any[]>([])
-  const [projects, setProjects] = useState<any[]>([])
-  const [departments, setDepartments] = useState<any[]>([])
-  const [cases, setCases] = useState<any[]>([])
-  
+  const { user: currentUser, isAdmin } = useCurrentUser()
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [users, setUsers] = useState<AppUser[]>([])
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [cases, setCases] = useState<Case[]>([])
+
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
   const [searchTerm, setSearchTerm] = useState('')
-  const [currentUser, setCurrentUser] = useState<any>(null)
 
-  const [selectedTask, setSelectedTask] = useState<any>(null)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [newChecklistItem, setNewChecklistItem] = useState('')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+
+  // Drag & drop
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
@@ -37,16 +43,19 @@ export default function TasksPage() {
   useEffect(() => {
     fetchData()
     if (window.innerWidth < 768) setViewMode('list')
+
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const fetchData = async () => {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user?.email) {
-      const { data: userData } = await supabase.from('users').select('*').eq('email', session.user.email).single()
-      if (userData) setCurrentUser(userData)
-    }
-
     const { data: tasksData } = await supabase.from('tasks')
       .select('*, owner:users!tasks_owner_id_fkey(first_name, last_name), projects(name), departments(name), cases(title, case_number)')
       .order('created_at', { ascending: false })
@@ -65,7 +74,6 @@ export default function TasksPage() {
     setLoading(false)
   }
 
-  const isAdmin = currentUser?.system_role === 'admin' || currentUser?.system_role === 'superadmin'
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
@@ -207,7 +215,13 @@ export default function TasksPage() {
     const isForMyDept = isUnassigned && task.department_id && currentUser?.department_id === task.department_id
 
     return (
-      <div className={`bg-white dark:bg-slate-800 p-4 rounded-xl border transition-all group cursor-pointer relative overflow-hidden softly-lifted ${isUnassigned ? 'border-orange-200 dark:border-orange-800/50 shadow-orange-100 dark:shadow-none' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`} onClick={() => { setSelectedTask(task); setIsEditingTask(false); setIsDrawerOpen(true); }}>
+      <div
+        draggable
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedTaskId(task.id) }}
+        onDragEnd={() => setDraggedTaskId(null)}
+        className={`bg-white dark:bg-slate-800 p-4 rounded-xl border transition-all group cursor-grab active:cursor-grabbing relative overflow-hidden softly-lifted ${draggedTaskId === task.id ? 'opacity-40 scale-95' : ''} ${isUnassigned ? 'border-orange-200 dark:border-orange-800/50 shadow-orange-100 dark:shadow-none' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`}
+        onClick={() => { setSelectedTask(task); setIsEditingTask(false); setIsDrawerOpen(true); }}
+      >
         {isUnassigned && <div className="absolute inset-0 bg-orange-50/30 dark:bg-orange-900/5 pointer-events-none"></div>}
         
         <div className="flex justify-between items-start mb-2 relative z-10">
@@ -293,7 +307,17 @@ export default function TasksPage() {
         {viewMode === 'board' && (
           <div className="flex-1 flex gap-4 overflow-x-auto custom-scrollbar pb-4 items-start">
             {columns.map(col => (
-              <div key={col.id} className={`flex-1 min-w-[300px] max-w-sm rounded-2xl flex flex-col max-h-full overflow-hidden border transition-colors ${col.color}`}>
+              <div
+                key={col.id}
+                onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id) }}
+                onDragLeave={() => setDragOverCol(null)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragOverCol(null)
+                  if (draggedTaskId) updateTaskStatus(draggedTaskId, col.id)
+                }}
+                className={`flex-1 min-w-[300px] max-w-sm rounded-2xl flex flex-col max-h-full overflow-hidden border transition-all ${col.color} ${dragOverCol === col.id && draggedTaskId ? 'ring-2 ring-blue-400 dark:ring-blue-500 scale-[1.01]' : ''}`}
+              >
                 <div className={`p-4 border-b border-black/5 dark:border-white/5 shrink-0 flex justify-between items-center ${col.textColor}`}><h3 className="font-extrabold uppercase tracking-wider text-sm">{col.title}</h3><span className="bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded-full text-xs font-bold">{filteredTasks.filter((t: any) => t.status === col.id).length}</span></div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">{filteredTasks.filter((t: any) => t.status === col.id).map((task: any) => <TaskCard key={task.id} task={task} />)}</div>
               </div>

@@ -2,26 +2,31 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
-import { Briefcase, Search, Plus, FileText, Link as LinkIcon, X, Clock, User, Building2, Send, Loader2, Shield, Paperclip } from 'lucide-react'
+import { Briefcase, Search, Plus, FileText, Link as LinkIcon, X, Clock, User, Building2, Send, Loader2, Shield, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
+import type { Case, CaseComment } from '../../types'
 
 export default function CasesPage() {
-  const [cases, setCases] = useState<any[]>([])
+  const { user: currentUser, isAdmin } = useCurrentUser()
+  const [cases, setCases] = useState<Case[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [currentUser, setCurrentUser] = useState<any>(null)
 
-  const [selectedCase, setSelectedCase] = useState<any>(null)
+  const [selectedCase, setSelectedCase] = useState<Case | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [credSignature, setCredSignature] = useState('')
-  
-  const [comments, setComments] = useState<any[]>([])
+
+  const [comments, setComments] = useState<CaseComment[]>([])
   const [newComment, setNewComment] = useState('')
   const [isSendingComment, setIsSendingComment] = useState(false)
 
   const [attachmentName, setAttachmentName] = useState('')
   const [attachmentUrl, setAttachmentUrl] = useState('')
+
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 20
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -29,17 +34,20 @@ export default function CasesPage() {
 
   useEffect(() => {
     fetchData()
+
+    const channel = supabase
+      .channel('cases-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cases' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const fetchData = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user?.email) {
-      const { data: userData } = await supabase.from('users').select('*').eq('email', session.user.email).single()
-      if (userData) setCurrentUser(userData)
-    }
-
     const { data } = await supabase.from('cases').select('*, users(first_name, last_name), departments(name)').order('created_at', { ascending: false })
-    if (data) setCases(data)
+    if (data) setCases(data as Case[])
     setLoading(false)
   }
 
@@ -127,9 +135,8 @@ export default function CasesPage() {
   }
 
   const filteredCases = cases.filter(c => (c.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.case_number || '').toLowerCase().includes(searchTerm.toLowerCase()))
-
-  // --- WERYFIKACJA UPRAWNIEŃ ---
-  const isAdmin = currentUser?.system_role === 'admin' || currentUser?.system_role === 'superadmin'
+  const totalPages = Math.max(1, Math.ceil(filteredCases.length / PAGE_SIZE))
+  const pagedCases = filteredCases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative overflow-hidden">
@@ -156,7 +163,7 @@ export default function CasesPage() {
         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm transition-colors">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-            <input type="text" placeholder="Szukaj po nazwie lub sygnaturze..." className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 transition-colors" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="Szukaj po nazwie lub sygnaturze..." className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 transition-colors" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }} />
           </div>
         </div>
 
@@ -171,7 +178,7 @@ export default function CasesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-              {filteredCases.map(c => (
+              {pagedCases.map(c => (
                 <tr key={c.id} onClick={() => openCaseDetails(c)} className="hover:bg-blue-50/50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group">
                   <td className="px-6 py-4">
                     <div className="font-mono text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 inline-block px-2 py-1 rounded mb-1">{c.case_number}</div>
@@ -194,6 +201,22 @@ export default function CasesPage() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 shrink-0">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+              Strona {page} z {totalPages} &middot; {filteredCases.length} spraw
+            </span>
+            <div className="flex gap-2">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors shadow-sm">
+                <ChevronLeft size={16} />
+              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors shadow-sm">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {isDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsDrawerOpen(false)} />}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { Users, ShieldCheck, UserX, Clock, Building2, ChevronRight, UserCheck, AlertTriangle, Tag, X, Plus, User, Mail, Shield } from 'lucide-react'
+import { Users, ShieldCheck, UserX, Clock, Building2, ChevronRight, ChevronLeft, UserCheck, AlertTriangle, Tag, X, Plus, User, Mail, Shield, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function UsersPage() {
@@ -103,9 +103,18 @@ export default function UsersPage() {
     setEditForm({ ...editForm, tags: editForm.tags.filter(t => t !== tagToRemove) })
   }
 
+  const [userSearch, setUserSearch] = useState('')
+  const [userPage, setUserPage] = useState(1)
+  const USER_PAGE_SIZE = 15
+
   const pendingUsers = users.filter(u => u.system_role === 'pending')
-  const activeUsers = users.filter(u => ['member', 'admin', 'superadmin'].includes(u.system_role))
   const inactiveUsers = users.filter(u => u.system_role === 'inactive')
+  const activeUsers = users.filter(u =>
+    ['active', 'member', 'admin', 'superadmin'].includes(u.system_role) &&
+    (`${u.first_name} ${u.last_name} ${u.email} ${u.departments?.name ?? ''}`).toLowerCase().includes(userSearch.toLowerCase())
+  )
+  const totalUserPages = Math.max(1, Math.ceil(activeUsers.length / USER_PAGE_SIZE))
+  const pagedActiveUsers = activeUsers.slice((userPage - 1) * USER_PAGE_SIZE, userPage * USER_PAGE_SIZE)
 
   // KONTROLA DOSTĘPU
   const isAdmin = currentUser?.system_role === 'admin' || currentUser?.system_role === 'superadmin'
@@ -164,13 +173,19 @@ export default function UsersPage() {
 
             {/* AKTYWNY ZESPÓŁ */}
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors softly-lifted">
-              <div className="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <ShieldCheck size={20} className="text-green-500 dark:text-green-400" /> Aktywny Zespół ({activeUsers.length})
-                </h2>
+              <div className="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <ShieldCheck size={20} className="text-green-500 dark:text-green-400" /> Aktywny Zespół ({activeUsers.length})
+                  </h2>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
+                  <input type="text" placeholder="Szukaj po imieniu, e-mailu lub pionie..." className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white transition-colors" value={userSearch} onChange={(e) => { setUserSearch(e.target.value); setUserPage(1) }} />
+                </div>
               </div>
               <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {activeUsers.map(user => (
+                {pagedActiveUsers.map(user => (
                   <li key={user.id} className="p-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors group" onClick={() => openEditor(user)}>
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
@@ -200,6 +215,19 @@ export default function UsersPage() {
                   </li>
                 ))}
               </ul>
+              {totalUserPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 dark:border-slate-700">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Strona {userPage} z {totalUserPages}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => setUserPage(p => Math.max(1, p - 1))} disabled={userPage === 1} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors">
+                      <ChevronLeft size={14} />
+                    </button>
+                    <button onClick={() => setUserPage(p => Math.min(totalUserPages, p + 1))} disabled={userPage === totalUserPages} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors">
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ZAWIESZENI (WIDOCZNI TYLKO DLA ADMINA) */}

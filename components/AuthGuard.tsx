@@ -6,8 +6,12 @@ import { supabase } from '../lib/supabase'
 import { usePathname, useRouter } from 'next/navigation'
 import { ShieldAlert, Loader2, LogOut } from 'lucide-react'
 
+const ADMIN_ROUTES = ['/executive', '/users']
+const PUBLIC_ROUTES = ['/login', '/wniosek']
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'pending' | 'active' | 'unauthenticated'>('loading')
+  const [systemRole, setSystemRole] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -17,10 +21,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession()
-    
+
     if (!session) {
       setStatus('unauthenticated')
-      if (pathname !== '/login') router.push('/login')
+      if (!PUBLIC_ROUTES.includes(pathname)) router.push('/login')
       return
     }
 
@@ -30,9 +34,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       .select('system_role')
       .eq('email', session.user.email)
       .single()
-    
-    // Jeśli konto jest w weryfikacji LUB zostało zawieszone przez Ciebie
-    if (userData?.system_role === 'pending' || userData?.system_role === 'inactive') {
+
+    const role = userData?.system_role ?? 'pending'
+    setSystemRole(role)
+
+    // Jeśli konto jest w weryfikacji LUB zostało zawieszone
+    if (role === 'pending' || role === 'inactive') {
       setStatus('pending')
     } else {
       setStatus('active')
@@ -44,8 +51,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }
 
-  // Na stronę logowania wpuszczamy każdego
-  if (pathname === '/login') return <>{children}</>
+  // Trasy publiczne — wpuszczamy każdego
+  if (PUBLIC_ROUTES.includes(pathname)) return <>{children}</>
 
   if (status === 'loading') {
     return (
@@ -72,6 +79,25 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         </p>
         <button onClick={handleLogout} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors relative z-10 shadow-lg">
           <LogOut size={18} /> Wyloguj się
+        </button>
+      </div>
+    )
+  }
+
+  // Blokada tras admina dla zwykłych użytkowników 🔒
+  const isAdminRoute = ADMIN_ROUTES.some(route => pathname.startsWith(route))
+  const isAdmin = systemRole === 'admin' || systemRole === 'superadmin'
+
+  if (isAdminRoute && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 text-center z-50 relative">
+        <ShieldAlert size={80} className="text-red-500 mb-6 relative z-10" />
+        <h1 className="text-3xl font-extrabold text-white mb-4 relative z-10">Brak dostępu</h1>
+        <p className="text-slate-400 max-w-lg mb-8 text-sm leading-relaxed relative z-10">
+          Ta sekcja jest dostępna wyłącznie dla Zarządu Komisji i Administratorów Systemu.
+        </p>
+        <button onClick={() => router.push('/')} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors relative z-10 shadow-lg">
+          Wróć do dashboardu
         </button>
       </div>
     )

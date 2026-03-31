@@ -2,60 +2,86 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useCurrentUser } from '../hooks/useCurrentUser'
 import Sidebar from '../components/Sidebar'
 import { Briefcase, CheckSquare, Calendar, Activity, TrendingUp, Clock, AlertCircle, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import type { Case, Task } from '../types'
 
 export default function DashboardPage() {
-  // 1. ZDEFINIOWANE STANY (Tego nam brakowało!)
+  const { user: currentUser } = useCurrentUser()
+
   const [stats, setStats] = useState({
     activeCases: 0,
     pendingTasks: 0,
     upcomingMeetings: 0,
     completedTasksThisWeek: 0,
   })
-  
-  const [urgentTasks, setUrgentTasks] = useState<any[]>([])
-  const [recentCases, setRecentCases] = useState<any[]>([])
+  const [activityChart, setActivityChart] = useState<{ label: string; count: number }[]>([])
+
+  const [urgentTasks, setUrgentTasks] = useState<Task[]>([])
+  const [recentCases, setRecentCases] = useState<Case[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  // 2. FUNKCJA POBIERAJĄCA PRAWDZIWE DANE
+  // Funkcja pobierająca dane
   const fetchDashboardData = async () => {
     setLoading(true)
-    
-    // Kto się loguje?
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user?.email) {
-      const { data: userData } = await supabase.from('users').select('*').eq('email', session.user.email).single()
-      if (userData) setCurrentUser(userData)
-    }
 
-    const today = new Date().toISOString().split('T')[0]
-    
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+
+    // Ostatnie 7 dni do wykresu aktywności
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(today.getDate() - (6 - i))
+      return d.toISOString().split('T')[0]
+    })
+
     // Statystyki Spraw
     const { count: activeCases } = await supabase.from('cases').select('*', { count: 'exact', head: true }).neq('status', 'closed')
     const { data: latestCases } = await supabase.from('cases').select('*').order('created_at', { ascending: false }).limit(4)
-    
+
+    // Sprawy z ostatnich 7 dni (do wykresu)
+    const { data: recentCasesRaw } = await supabase
+      .from('cases')
+      .select('created_at')
+      .gte('created_at', last7Days[0])
+
     // Statystyki Zadań (Otwarte)
     const { count: pendingTasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'done')
     const { data: tasksDueSoon } = await supabase.from('tasks').select('*, users(first_name, last_name)').neq('status', 'done').order('deadline', { ascending: true }).limit(4)
-    
-    // Statystyki Spotkań
-    const { count: upcomingMeetings } = await supabase.from('meetings').select('*', { count: 'exact', head: true }).gte('meeting_date', today)
 
-    // PRAWDZIWA STATYSTYKA ZAMKNIĘTYCH ZADAŃ
-    const { count: completedTasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'done')
+    // Zadania zamknięte W TYM TYGODNIU
+    const startOfWeek = new Date(today)
+    startOfWeek.setDate(today.getDate() - today.getDay() + 1) // poniedziałek
+    const { count: completedTasks } = await supabase
+      .from('tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'done')
+      .gte('updated_at', startOfWeek.toISOString().split('T')[0])
+
+    // Statystyki Spotkań
+    const { count: upcomingMeetings } = await supabase.from('meetings').select('*', { count: 'exact', head: true }).gte('meeting_date', todayStr)
+
+    // Budujemy dane wykresu: ile spraw wpłynęło każdego dnia
+    const dayLabels = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
+    const chartData = last7Days.map(dateStr => {
+      const count = (recentCasesRaw || []).filter(c => c.created_at.startsWith(dateStr)).length
+      const dayOfWeek = new Date(dateStr).getDay()
+      const label = dayLabels[dayOfWeek === 0 ? 6 : dayOfWeek - 1]
+      return { label, count }
+    })
+    setActivityChart(chartData)
 
     setStats({
       activeCases: activeCases || 0,
       pendingTasks: pendingTasks || 0,
       upcomingMeetings: upcomingMeetings || 0,
-      completedTasksThisWeek: completedTasks || 0
+      completedTasksThisWeek: completedTasks || 0,
     })
 
     if (tasksDueSoon) setUrgentTasks(tasksDueSoon)
@@ -105,7 +131,7 @@ export default function DashboardPage() {
               <StatCard title="Sprawy w toku" value={stats.activeCases} subtitle="Oczekujące na zamknięcie" icon={Briefcase} color="bg-blue-500" bgLight="bg-blue-50" bgDark="bg-blue-900/30" />
               <StatCard title="Otwarte Zadania" value={stats.pendingTasks} subtitle="Wymagają podjęcia akcji" icon={CheckSquare} color="bg-green-500" bgLight="bg-green-50" bgDark="bg-green-900/30" />
               <StatCard title="Nadchodzące Zebrania" value={stats.upcomingMeetings} subtitle="Zaplanowane w kalendarzu" icon={Calendar} color="bg-orange-500" bgLight="bg-orange-50" bgDark="bg-orange-900/30" />
-              <StatCard title="Rozwiązane Zadania" value={stats.completedTasksThisWeek} subtitle="Skuteczność zespołu" icon={TrendingUp} color="bg-purple-500" bgLight="bg-purple-50" bgDark="bg-purple-900/30" />
+              <StatCard title="Rozwiązane Zadania" value={stats.completedTasksThisWeek} subtitle="Zamknięte w tym tygodniu" icon={TrendingUp} color="bg-purple-500" bgLight="bg-purple-50" bgDark="bg-purple-900/30" />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -120,14 +146,24 @@ export default function DashboardPage() {
                   </div>
                   
                   <div className="flex items-end gap-2 h-48 mt-4 pt-4 border-t border-slate-50 dark:border-slate-700/50">
-                    {[40, 70, 45, 90, 65, 30, 85].map((height, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-2 group cursor-pointer">
-                        <div className="w-full relative bg-slate-100 dark:bg-slate-700 rounded-t-lg h-full overflow-hidden">
-                          <div className="absolute bottom-0 w-full bg-blue-500 hover:bg-blue-400 dark:bg-blue-600 dark:hover:bg-blue-500 transition-all duration-500 rounded-t-lg" style={{ height: `${height}%` }}></div>
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-400">Dzień {i+1}</span>
-                      </div>
-                    ))}
+                    {(() => {
+                      const maxCount = Math.max(...activityChart.map(d => d.count), 1)
+                      return activityChart.map((day, i) => {
+                        const heightPct = Math.max((day.count / maxCount) * 100, day.count > 0 ? 8 : 2)
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-2 group cursor-pointer">
+                            <span className="text-[10px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">{day.count}</span>
+                            <div className="w-full relative bg-slate-100 dark:bg-slate-700 rounded-t-lg h-full overflow-hidden">
+                              <div
+                                className="absolute bottom-0 w-full bg-blue-500 hover:bg-blue-400 dark:bg-blue-600 dark:hover:bg-blue-500 transition-all duration-500 rounded-t-lg"
+                                style={{ height: `${heightPct}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400">{day.label}</span>
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
                 </div>
 

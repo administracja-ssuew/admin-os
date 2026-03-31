@@ -5,8 +5,10 @@ import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { Lock, Mail, Loader2, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react'
 
+type View = 'login' | 'register' | 'reset'
+
 export default function LoginPage() {
-  const [isLoginView, setIsLoginView] = useState(true)
+  const [view, setView] = useState<View>('login')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
@@ -17,36 +19,51 @@ export default function LoginPage() {
     password: ''
   })
 
+  const switchView = (next: View) => {
+    setView(next)
+    setErrorMsg('')
+    setSuccessMsg('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
     setSuccessMsg('')
 
-    if (isLoginView) {
+    if (view === 'login') {
       // --- LOGOWANIE ---
       const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       })
-
       if (error) {
         setErrorMsg('Nieprawidłowy e-mail lub hasło.')
       } else {
-        router.push('/') // Po udanym logowaniu wrzucamy gościa na stronę główną (lub do poczekalni, jeśli to złapie Bramkarz)
+        router.push('/')
       }
-    } else {
+    } else if (view === 'register') {
       // --- REJESTRACJA ---
       const { error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       })
-
       if (error) {
         setErrorMsg('Błąd rejestracji: ' + error.message)
       } else {
         setSuccessMsg('Konto utworzone! Zaloguj się, aby przejść do poczekalni.')
-        setIsLoginView(true) // Przełączamy z powrotem na logowanie
+        switchView('login')
+        setFormData({ email: '', password: '' })
+      }
+    } else {
+      // --- RESET HASŁA ---
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/login`,
+      })
+      if (error) {
+        setErrorMsg('Nie udało się wysłać e-maila: ' + error.message)
+      } else {
+        setSuccessMsg('Link do resetowania hasła został wysłany na podany adres e-mail.')
         setFormData({ email: '', password: '' })
       }
     }
@@ -67,7 +84,7 @@ export default function LoginPage() {
 
         <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 softly-lifted">
           <h2 className="text-xl font-bold text-slate-900 mb-6">
-            {isLoginView ? 'Zaloguj się do systemu' : 'Utwórz nowe konto'}
+            {view === 'login' ? 'Zaloguj się do systemu' : view === 'register' ? 'Utwórz nowe konto' : 'Resetuj hasło'}
           </h2>
 
           {errorMsg && (
@@ -87,10 +104,10 @@ export default function LoginPage() {
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">E-mail służbowy</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-3.5 text-slate-400" size={20} />
-                <input 
-                  type="email" 
-                  required 
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900" 
+                <input
+                  type="email"
+                  required
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
                   placeholder="imie.nazwisko@domena.pl"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -98,41 +115,56 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Hasło dostępu</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
-                <input 
-                  type="password" 
-                  required 
-                  minLength={6}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900" 
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                />
+            {view !== 'reset' && (
+              <div>
+                <div className="flex justify-between items-center mb-1.5 ml-1">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">Hasło dostępu</label>
+                  {view === 'login' && (
+                    <button type="button" onClick={() => switchView('reset')} className="text-xs font-bold text-blue-500 hover:text-blue-700 transition-colors">
+                      Zapomniałem hasła
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70 mt-4 group"
             >
               {loading ? <Loader2 size={20} className="animate-spin" /> : (
-                <>{isLoginView ? 'WEJDŹ DO SYSTEMU' : 'ZAREJESTRUJ SIĘ'} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                <>
+                  {view === 'login' ? 'WEJDŹ DO SYSTEMU' : view === 'register' ? 'ZAREJESTRUJ SIĘ' : 'WYŚLIJ LINK RESETUJĄCY'}
+                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </>
               )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button 
-              type="button" 
-              onClick={() => { setIsLoginView(!isLoginView); setErrorMsg(''); setSuccessMsg(''); }}
-              className="text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors"
-            >
-              {isLoginView ? 'Nie masz konta? Złóż wniosek o dostęp' : 'Masz już konto? Zaloguj się'}
-            </button>
+          <div className="mt-6 text-center space-y-2">
+            {view === 'login' && (
+              <button type="button" onClick={() => switchView('register')} className="block w-full text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">
+                Nie masz konta? Złóż wniosek o dostęp
+              </button>
+            )}
+            {(view === 'register' || view === 'reset') && (
+              <button type="button" onClick={() => switchView('login')} className="block w-full text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">
+                Wróć do logowania
+              </button>
+            )}
           </div>
         </div>
       </div>
