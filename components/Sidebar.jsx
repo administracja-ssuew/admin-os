@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { Moon, Sun, LogOut, FileText, Lightbulb } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -61,8 +62,13 @@ export default function Sidebar() {
   return (
     <div className="w-64 bg-slate-900 text-white min-h-screen flex flex-col fixed left-0 top-0 z-50 shadow-2xl">
       <div className="p-6 border-b border-slate-800">
-        <h2 className="text-2xl font-extrabold text-blue-500 tracking-wider">AdminOS</h2>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">Wrocław</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-extrabold text-blue-500 tracking-wider">AdminOS</h2>
+            <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">Wrocław</p>
+          </div>
+          <NotificationBell />
+        </div>
       </div>
       
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">

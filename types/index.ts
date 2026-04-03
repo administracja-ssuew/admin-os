@@ -155,3 +155,48 @@ export interface Decision {
   effective_date: string | null
   created_at: string
 }
+
+// ─── AUDIT LOG ──────────────────────────────────────────────────
+export interface AuditLogEntry {
+  id: string
+  user_id: string | null
+  action: string
+  entity_type: string
+  entity_id: string
+  old_value: Record<string, any> | null
+  new_value: Record<string, any> | null
+  created_at: string
+  // relacje
+  users?: { first_name: string; last_name: string } | null
+}
+
+// ─── POWIADOMIENIA ──────────────────────────────────────────────
+export type NotificationType =
+  | 'task_assigned'
+  | 'case_status_change'
+  | 'case_comment'
+  | 'new_meeting'
+  | 'external_submission'
+  | 'deadline_reminder'
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
+}
+
+export interface NotificationPreference {
+  id: string
+  user_id: string
+  email_task_assigned: boolean
+  email_case_status: boolean
+  email_case_comment: boolean
+  email_new_meeting: boolean
+  email_deadline_reminder: boolean
+  email_external_submission: boolean
+}
