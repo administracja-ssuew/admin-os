@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /c/Users/Mikołaj/Downloads/admin-os/admin-os/.env*)",
+      "Bash(find /c/Users/Mikołaj/Downloads/admin-os/admin-os/app -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.json \\\\\\))",
+      "Bash(find /c/Users/Mikołaj/Downloads/admin-os/admin-os/components -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(find /c/Users/Mikołaj/Downloads/admin-os/admin-os/lib -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
