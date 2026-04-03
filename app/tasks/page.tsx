@@ -18,6 +18,7 @@ export default function TasksPage() {
 
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
+  const [boardMode, setBoardMode] = useState<'all' | 'zarzad'>('all')
   const [searchTerm, setSearchTerm] = useState('')
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -190,10 +191,20 @@ export default function TasksPage() {
     setIsSubmitting(false)
   }
 
+  // Zbiór ID adminów — do filtrowania Tablicy Zarządu
+  const adminUserIds = new Set(
+    users.filter(u => u.system_role === 'admin' || u.system_role === 'superadmin').map(u => u.id)
+  )
+
   // --- INTELIGENTNE FILTROWANIE WIDOCZNOŚCI ---
   const filteredTasks = tasks.filter((t: any) => {
     const matchesSearch = (t.title || '').toLowerCase().includes(searchTerm.toLowerCase())
     if (!matchesSearch) return false
+
+    // Tryb Tablicy Zarządu — tylko zadania adminów
+    if (boardMode === 'zarzad') {
+      return t.owner_id && adminUserIds.has(t.owner_id)
+    }
 
     // Zarząd widzi absolutnie wszystko
     if (isAdmin) return true
@@ -205,6 +216,8 @@ export default function TasksPage() {
 
     return isMine || isMyDept || isGlobal
   })
+
+  const zarzadTaskCount = tasks.filter(t => t.owner_id && adminUserIds.has(t.owner_id)).length
   
   const columns = [
     { id: 'to_do', title: 'Do Zrobienia', color: 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50', textColor: 'text-slate-600 dark:text-slate-400' },
@@ -293,10 +306,33 @@ export default function TasksPage() {
       <Sidebar />
       <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all flex flex-col h-screen ml-16">
         
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 shrink-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 shrink-0">
           <div><h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3 transition-colors"><CheckSquare className="text-green-500" size={32} /> Tablica Operacyjna</h1></div>
           {isAdmin && <button onClick={() => setIsModalOpen(true)} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all"><Plus size={20} /> Nowe Zadanie</button>}
         </div>
+
+        {/* Tab bar Zarządu — widoczny tylko dla adminów */}
+        {isAdmin && (
+          <div className="flex gap-2 mb-4 shrink-0">
+            <button
+              onClick={() => setBoardMode('all')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${boardMode === 'all' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-blue-300'}`}
+            >
+              Wszystkie zadania
+            </button>
+            <button
+              onClick={() => setBoardMode('zarzad')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${boardMode === 'zarzad' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-amber-300'}`}
+            >
+              🛡️ Tablica Zarządu
+              {zarzadTaskCount > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${boardMode === 'zarzad' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>
+                  {zarzadTaskCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="bg-white dark:bg-slate-800 p-2 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm flex flex-col md:flex-row gap-2 transition-colors">
           <div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-400" size={18} /><input type="text" placeholder="Szukaj zadania..." className="w-full pl-10 pr-4 py-2 border-none focus:ring-0 outline-none text-slate-900 dark:text-white bg-transparent text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
@@ -308,7 +344,7 @@ export default function TasksPage() {
         </div>
 
         {viewMode === 'board' && (
-          <div className="flex-1 flex gap-4 overflow-x-auto custom-scrollbar pb-4 items-start">
+          <div className={`flex-1 flex gap-4 overflow-x-auto custom-scrollbar pb-4 items-start rounded-2xl transition-colors ${boardMode === 'zarzad' ? 'bg-amber-50/40 dark:bg-amber-900/5 p-3' : ''}`}>
             {columns.map(col => (
               <div
                 key={col.id}
