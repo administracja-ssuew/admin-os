@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
+import { useCurrentUser } from '../../hooks/useCurrentUser'
 import {
   FileText, RefreshCw, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle, Pause, Search,
   MessageSquare, User, Calendar, ExternalLink,
-  Filter, SortDesc, Loader2
+  Filter, SortDesc, Loader2, Lock
 } from 'lucide-react'
 
 // ─── KONFIGURACJA ────────────────────────────────────────────────
@@ -87,6 +88,7 @@ interface SzczegolySpr extends Sprawa {
 
 // ─── KOMPONENT GŁÓWNY ────────────────────────────────────────────
 export default function CREDPage() {
+  const { isAdmin } = useCurrentUser()
   const [sprawy, setSprawy]           = useState<Sprawa[]>([])
   const [loading, setLoading]         = useState(true)
   const [lastUpdate, setLastUpdate]   = useState<Date | null>(null)
@@ -348,81 +350,92 @@ export default function CREDPage() {
                     </div>
                   </div>
 
-                  {/* Akcje */}
-                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 space-y-4">
-                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Akcje</h3>
+                  {/* Akcje — tylko dla adminów */}
+                  {isAdmin ? (
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 space-y-4">
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Akcje</h3>
 
-                    {/* Zmiana statusu */}
-                    <div className="flex gap-2">
-                      <select
-                        value={nowyStatus}
-                        onChange={e => setNowyStatus(e.target.value)}
-                        className="flex-1 text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400"
-                      >
-                        {STATUSY.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <button
-                        onClick={() => handleAction('setStatus', { value: nowyStatus }, `Status zmieniony na: ${nowyStatus}`)}
-                        disabled={actionLoading || nowyStatus === szczegoly.status}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
-                      >
-                        {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                        Zmień
-                      </button>
-                    </div>
+                      {/* Zmiana statusu */}
+                      <div className="flex gap-2">
+                        <select
+                          value={nowyStatus}
+                          onChange={e => setNowyStatus(e.target.value)}
+                          className="flex-1 text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400"
+                        >
+                          {STATUSY.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <button
+                          onClick={() => handleAction('setStatus', { value: nowyStatus }, `Status zmieniony na: ${nowyStatus}`)}
+                          disabled={actionLoading || nowyStatus === szczegoly.status}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
+                        >
+                          {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                          Zmień
+                        </button>
+                      </div>
 
-                    {/* Prowadzący */}
-                    <div className="flex gap-2">
-                      <input
-                        value={nowyOwner}
-                        onChange={e => setNowyOwner(e.target.value)}
-                        placeholder="email prowadzącego..."
-                        className="flex-1 text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400 placeholder:text-slate-400"
-                      />
-                      <button
-                        onClick={() => handleAction('setOwner', { email: nowyOwner }, 'Prowadzący zaktualizowany')}
-                        disabled={actionLoading || !nowyOwner}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
-                      >
-                        <User size={14} /> Przypisz
-                      </button>
-                    </div>
+                      {/* Prowadzący */}
+                      <div className="flex gap-2">
+                        <input
+                          value={nowyOwner}
+                          onChange={e => setNowyOwner(e.target.value)}
+                          placeholder="email prowadzącego..."
+                          className="flex-1 text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400 placeholder:text-slate-400"
+                        />
+                        <button
+                          onClick={() => handleAction('setOwner', { email: nowyOwner }, 'Prowadzący zaktualizowany')}
+                          disabled={actionLoading || !nowyOwner}
+                          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
+                        >
+                          <User size={14} /> Przypisz
+                        </button>
+                      </div>
 
-                    {/* Termin SLA */}
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={nowySLA}
-                        onChange={e => setNowySLA(e.target.value)}
-                        className="flex-1 text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400"
-                      />
-                      <button
-                        onClick={() => handleAction('setSLA', { date: nowySLA }, 'Termin SLA zaktualizowany')}
-                        disabled={actionLoading || !nowySLA}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
-                      >
-                        <Calendar size={14} /> Ustaw SLA
-                      </button>
-                    </div>
+                      {/* Termin SLA */}
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={nowySLA}
+                          onChange={e => setNowySLA(e.target.value)}
+                          className="flex-1 text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400"
+                        />
+                        <button
+                          onClick={() => handleAction('setSLA', { date: nowySLA }, 'Termin SLA zaktualizowany')}
+                          disabled={actionLoading || !nowySLA}
+                          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
+                        >
+                          <Calendar size={14} /> Ustaw SLA
+                        </button>
+                      </div>
 
-                    {/* Notatka */}
-                    <div className="space-y-2">
-                      <textarea
-                        value={nowaNotatka}
-                        onChange={e => setNowaNotatka(e.target.value)}
-                        placeholder="Notatka wewnętrzna (niewidoczna dla wnioskodawcy)..."
-                        rows={2}
-                        className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400 resize-none placeholder:text-slate-400"
-                      />
-                      <button
-                        onClick={() => handleAction('addNote', { text: encodeURIComponent(nowaNotatka) }, 'Notatka zapisana')}
-                        disabled={actionLoading || !nowaNotatka.trim()}
-                        className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <MessageSquare size={14} /> Dodaj notatkę
-                      </button>
+                      {/* Notatka */}
+                      <div className="space-y-2">
+                        <textarea
+                          value={nowaNotatka}
+                          onChange={e => setNowaNotatka(e.target.value)}
+                          placeholder="Notatka wewnętrzna (niewidoczna dla wnioskodawcy)..."
+                          rows={2}
+                          className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400 resize-none placeholder:text-slate-400"
+                        />
+                        <button
+                          onClick={() => handleAction('addNote', { text: encodeURIComponent(nowaNotatka) }, 'Notatka zapisana')}
+                          disabled={actionLoading || !nowaNotatka.trim()}
+                          className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <MessageSquare size={14} /> Dodaj notatkę
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <Lock size={16} className="text-slate-400 flex-shrink-0" />
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          Widok tylko do odczytu. Akcje dostępne wyłącznie dla Zarządu.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Audit Log — historia */}
                   <div className="px-6 py-4">

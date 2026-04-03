@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import { logAudit } from '../../../lib/audit'
+
+// Akcje, które modyfikują dane — wymagają roli admin/superadmin
+const MUTATION_ACTIONS = ['setStatus', 'setOwner', 'setSLA', 'addNote']
 
 export async function GET(request: Request) {
   try {
@@ -19,10 +23,57 @@ export async function GET(request: Request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const action = searchParams.get('action') || ''
+
+    // Sprawdzenie roli dla akcji mutujących
+    if (MUTATION_ACTIONS.includes(action)) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('system_role, id')
+        .eq('email', user.email!)
+        .single()
+
+      if (!userData || !['admin', 'superadmin'].includes(userData.system_role)) {
+        return Response.json(
+          { error: 'Brak uprawnień do wykonania tej operacji. Wymagana rola: Admin.' },
+          { status: 403 }
+        )
+      }
+
+      // Logujemy mutację do audit_log po wykonaniu
+      const znak = searchParams.get('znak') || ''
+      const params = Object.fromEntries(searchParams.entries())
+
+      const credToken = process.env.CRED_TOKEN
+      const credApiUrl = process.env.CRED_API_URL
+
+      const qs = new URLSearchParams({
+        ...params,
+        token: credToken!,
+        autor: user.email!,
+      }).toString()
+
+      const res = await fetch(`${credApiUrl}?${qs}`)
+      const data = await res.json()
+
+      if (!data.error) {
+        await logAudit({
+          userId: userData.id,
+          action: `cred.${action}`,
+          entityType: 'cred_case',
+          entityId: znak,
+          newValue: { action, ...params },
+        })
+      }
+
+      return Response.json(data)
+    }
+
+    // Akcje read-only — dostępne dla wszystkich zalogowanych
     const credToken = process.env.CRED_TOKEN
     const credApiUrl = process.env.CRED_API_URL
 
-    const { searchParams } = new URL(request.url)
     const params = Object.fromEntries(searchParams.entries())
 
     const qs = new URLSearchParams({
