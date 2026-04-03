@@ -1,10 +1,10 @@
 // plik: components/AuthGuard.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePathname, useRouter } from 'next/navigation'
-import { ShieldAlert, Loader2, LogOut } from 'lucide-react'
+import { ShieldAlert, Loader2, LogOut, RefreshCw } from 'lucide-react'
 
 const ADMIN_ROUTES = ['/executive', '/users']
 const PUBLIC_ROUTES = ['/login', '/wniosek']
@@ -12,6 +12,9 @@ const PUBLIC_ROUTES = ['/login', '/wniosek']
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'pending' | 'active' | 'unauthenticated'>('loading')
   const [systemRole, setSystemRole] = useState<string | null>(null)
+  const [pollCountdown, setPollCountdown] = useState(15)
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownRef = useRef<NodeJS.Timeout | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -43,8 +46,33 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       setStatus('pending')
     } else {
       setStatus('active')
+      // Konto właśnie zostało zatwierdzone — odśwież stronę
+      if (pollRef.current) clearInterval(pollRef.current)
+      if (countdownRef.current) clearInterval(countdownRef.current)
     }
   }
+
+  // Polling co 15s gdy status === 'pending'
+  useEffect(() => {
+    if (status !== 'pending') return
+
+    const startPolling = () => {
+      setPollCountdown(15)
+      pollRef.current = setInterval(() => {
+        checkUser()
+        setPollCountdown(15)
+      }, 15000)
+      countdownRef.current = setInterval(() => {
+        setPollCountdown(prev => (prev <= 1 ? 15 : prev - 1))
+      }, 1000)
+    }
+
+    startPolling()
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [status])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -72,14 +100,28 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
         <ShieldAlert size={80} className="text-orange-500 mb-6 animate-pulse relative z-10" />
         <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4 relative z-10">Konto w weryfikacji</h1>
-        <p className="text-slate-400 max-w-lg mb-8 text-sm md:text-base leading-relaxed relative z-10">
-          Twoje konto zostało zarejestrowane, ale oczekuje na ręczne zatwierdzenie przez Zarząd Komisji oraz przypisanie do odpowiedniego pionu. 
-          <br/><br/>
-          Ze względów bezpieczeństwa dostęp do systemu operacyjnego został tymczasowo zablokowany.
+        <p className="text-slate-400 max-w-lg mb-6 text-sm md:text-base leading-relaxed relative z-10">
+          Twoje konto zostało zarejestrowane i oczekuje na zatwierdzenie przez Zarząd Komisji.
+          Po weryfikacji zostaniesz automatycznie przekierowany do systemu.
         </p>
-        <button onClick={handleLogout} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors relative z-10 shadow-lg">
-          <LogOut size={18} /> Wyloguj się
-        </button>
+
+        {/* Countdown do następnego sprawdzenia */}
+        <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-widest mb-8 relative z-10">
+          <RefreshCw size={12} className="animate-spin" />
+          Sprawdzam status za {pollCountdown}s
+        </div>
+
+        <div className="flex gap-3 relative z-10">
+          <button
+            onClick={() => { checkUser(); setPollCountdown(15) }}
+            className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors shadow-lg"
+          >
+            <RefreshCw size={16} /> Sprawdź teraz
+          </button>
+          <button onClick={handleLogout} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors shadow-lg">
+            <LogOut size={16} /> Wyloguj się
+          </button>
+        </div>
       </div>
     )
   }

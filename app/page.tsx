@@ -62,7 +62,7 @@ export default function DashboardPage() {
       .from('tasks')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'done')
-      .gte('updated_at', startOfWeek.toISOString())
+      .gte('created_at', startOfWeek.toISOString())
 
     // Statystyki Spotkań
     const { count: upcomingMeetings } = await supabase.from('meetings').select('*', { count: 'exact', head: true }).gte('meeting_date', todayStr)

@@ -1,28 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Lock, Mail, Loader2, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react'
+import { Lock, Mail, Loader2, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react'
 
-type View = 'login' | 'register' | 'reset'
+type View = 'login' | 'register' | 'reset' | 'new_password'
 
 export default function LoginPage() {
   const [view, setView] = useState<View>('login')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  })
+  const [formData, setFormData] = useState({ email: '', password: '', newPassword: '', confirmPassword: '' })
+
+  // Wykrywamy token recovery z URL po kliknięciu linku resetującego
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('type=recovery') || hash.includes('type=signup')) {
+      // Supabase automatycznie ustawi sesję z URL hash — czekamy chwilę
+      supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setView('new_password')
+        }
+      })
+    }
+  }, [])
 
   const switchView = (next: View) => {
     setView(next)
     setErrorMsg('')
     setSuccessMsg('')
+    setFormData({ email: '', password: '', newPassword: '', confirmPassword: '' })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +44,6 @@ export default function LoginPage() {
     setSuccessMsg('')
 
     if (view === 'login') {
-      // --- LOGOWANIE ---
       const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -42,8 +53,8 @@ export default function LoginPage() {
       } else {
         router.push('/')
       }
+
     } else if (view === 'register') {
-      // --- REJESTRACJA ---
       const { error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -51,28 +62,60 @@ export default function LoginPage() {
       if (error) {
         setErrorMsg('Błąd rejestracji: ' + error.message)
       } else {
-        setSuccessMsg('Konto utworzone! Zaloguj się, aby przejść do poczekalni.')
+        setSuccessMsg('Konto utworzone! Sprawdź skrzynkę e-mail i potwierdź adres, a następnie zaloguj się i poczekaj na weryfikację przez Zarząd.')
         switchView('login')
-        setFormData({ email: '', password: '' })
       }
-    } else {
-      // --- RESET HASŁA ---
+
+    } else if (view === 'reset') {
       const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
         redirectTo: `${window.location.origin}/login`,
       })
       if (error) {
         setErrorMsg('Nie udało się wysłać e-maila: ' + error.message)
       } else {
-        setSuccessMsg('Link do resetowania hasła został wysłany na podany adres e-mail.')
-        setFormData({ email: '', password: '' })
+        setSuccessMsg('Link do resetowania hasła został wysłany. Sprawdź skrzynkę (również folder SPAM).')
+      }
+
+    } else if (view === 'new_password') {
+      if (formData.newPassword.length < 6) {
+        setErrorMsg('Hasło musi mieć co najmniej 6 znaków.')
+        setLoading(false)
+        return
+      }
+      if (formData.newPassword !== formData.confirmPassword) {
+        setErrorMsg('Hasła nie są identyczne.')
+        setLoading(false)
+        return
+      }
+      const { error } = await supabase.auth.updateUser({ password: formData.newPassword })
+      if (error) {
+        setErrorMsg('Błąd ustawiania hasła: ' + error.message)
+      } else {
+        setSuccessMsg('Hasło zostało zmienione. Możesz się teraz zalogować.')
+        switchView('login')
       }
     }
+
     setLoading(false)
+  }
+
+  const titles: Record<View, string> = {
+    login: 'Zaloguj się do systemu',
+    register: 'Utwórz nowe konto',
+    reset: 'Resetuj hasło',
+    new_password: 'Ustaw nowe hasło',
+  }
+
+  const buttonLabels: Record<View, string> = {
+    login: 'WEJDŹ DO SYSTEMU',
+    register: 'ZAREJESTRUJ SIĘ',
+    reset: 'WYŚLIJ LINK RESETUJĄCY',
+    new_password: 'USTAW NOWE HASŁO',
   }
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      
+
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
@@ -83,39 +126,42 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 softly-lifted">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">
-            {view === 'login' ? 'Zaloguj się do systemu' : view === 'register' ? 'Utwórz nowe konto' : 'Resetuj hasło'}
-          </h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-6">{titles[view]}</h2>
 
           {errorMsg && (
             <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-bold rounded-xl flex items-start gap-2 border border-red-100">
-              <AlertCircle size={18} className="shrink-0" /> {errorMsg}
+              <AlertCircle size={18} className="shrink-0 mt-0.5" /> {errorMsg}
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-6 p-4 bg-green-50 text-green-600 text-sm font-bold rounded-xl flex items-start gap-2 border border-green-100">
-              <ShieldCheck size={18} className="shrink-0" /> {successMsg}
+            <div className="mb-6 p-4 bg-green-50 text-green-700 text-sm font-bold rounded-xl flex items-start gap-2 border border-green-100">
+              <ShieldCheck size={18} className="shrink-0 mt-0.5" /> {successMsg}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">E-mail służbowy</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-3.5 text-slate-400" size={20} />
-                <input
-                  type="email"
-                  required
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
-                  placeholder="imie.nazwisko@domena.pl"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
-              </div>
-            </div>
 
-            {view !== 'reset' && (
+            {/* Email — przy new_password nie potrzebny */}
+            {view !== 'new_password' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">E-mail służbowy</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                  <input
+                    type="email"
+                    required
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
+                    placeholder="imie.nazwisko@domena.pl"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Hasło — tylko dla login i register */}
+            {(view === 'login' || view === 'register') && (
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">Hasło dostępu</label>
@@ -128,16 +174,58 @@ export default function LoginPage() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     minLength={6}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
+                    className="w-full pl-12 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
                     placeholder="••••••••"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600">
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </div>
+            )}
+
+            {/* Nowe hasło — tylko dla new_password */}
+            {view === 'new_password' && (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nowe hasło</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      className="w-full pl-12 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
+                      placeholder="Minimum 6 znaków"
+                      value={formData.newPassword}
+                      onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600">
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Powtórz nowe hasło</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900"
+                      placeholder="Powtórz hasło"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <button
@@ -146,10 +234,7 @@ export default function LoginPage() {
               className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70 mt-4 group"
             >
               {loading ? <Loader2 size={20} className="animate-spin" /> : (
-                <>
-                  {view === 'login' ? 'WEJDŹ DO SYSTEMU' : view === 'register' ? 'ZAREJESTRUJ SIĘ' : 'WYŚLIJ LINK RESETUJĄCY'}
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </>
+                <>{buttonLabels[view]}<ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
               )}
             </button>
           </form>
@@ -160,7 +245,7 @@ export default function LoginPage() {
                 Nie masz konta? Złóż wniosek o dostęp
               </button>
             )}
-            {(view === 'register' || view === 'reset') && (
+            {(view === 'register' || view === 'reset' || view === 'new_password') && (
               <button type="button" onClick={() => switchView('login')} className="block w-full text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">
                 Wróć do logowania
               </button>
@@ -169,7 +254,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Abstrakcyjne tło */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 w-[800px] h-[800px] rounded-full bg-blue-900/20 blur-[120px]"></div>
     </div>
   )
