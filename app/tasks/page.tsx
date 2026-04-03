@@ -308,7 +308,22 @@ export default function TasksPage() {
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 shrink-0">
           <div><h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3 transition-colors"><CheckSquare className="text-green-500" size={32} /> Tablica Operacyjna</h1></div>
-          {isAdmin && <button onClick={() => setIsModalOpen(true)} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all"><Plus size={20} /> Nowe Zadanie</button>}
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setFormData({
+                  title: '', description: '',
+                  owner_id: boardMode === 'zarzad' ? (currentUser?.id ?? '') : '',
+                  department_id: '', project_id: '', case_id: '',
+                  deadline: '', status: 'to_do', priority: 'medium'
+                })
+                setIsModalOpen(true)
+              }}
+              className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all"
+            >
+              <Plus size={20} /> Nowe Zadanie
+            </button>
+          )}
         </div>
 
         {/* Tab bar Zarządu — widoczny tylko dla adminów */}
@@ -514,8 +529,36 @@ export default function TasksPage() {
             <form onSubmit={handleAddTask} className="p-6 space-y-4">
               <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tytuł zadania</label><input type="text" required autoFocus className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Konkretna Osoba</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.owner_id} onChange={(e) => setFormData({...formData, owner_id: e.target.value, department_id: ''})}><option value="">Do wzięcia!</option>{users.map((u: any) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}</select></div>
-                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lub Do Pionu</label><select disabled={!!formData.owner_id} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white disabled:opacity-50" value={formData.department_id} onChange={(e) => setFormData({...formData, department_id: e.target.value})}><option value="">Wybierz Pion...</option>{departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                    {boardMode === 'zarzad' ? 'Członek Zarządu' : 'Konkretna Osoba'}
+                  </label>
+                  <select
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
+                    value={formData.owner_id}
+                    onChange={(e) => setFormData({...formData, owner_id: e.target.value, department_id: ''})}
+                  >
+                    <option value="">Do wzięcia!</option>
+                    {(boardMode === 'zarzad'
+                      ? users.filter((u: any) => u.system_role === 'admin' || u.system_role === 'superadmin')
+                      : users
+                    ).map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lub Do Pionu</label>
+                  <select
+                    disabled={!!formData.owner_id || boardMode === 'zarzad'}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white disabled:opacity-50"
+                    value={formData.department_id}
+                    onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                  >
+                    <option value="">Wybierz Pion...</option>
+                    {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Projekt</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.project_id} onChange={(e) => setFormData({...formData, project_id: e.target.value})}><option value="">Brak</option>{projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
