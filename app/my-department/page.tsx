@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud, Trash2, ClipboardList, CheckCheck, AlertTriangle, Eye } from 'lucide-react'
+import { Building2, FileSpreadsheet, Users, Activity, CheckSquare, Clock, Save, Loader2, ShieldAlert, PiggyBank, Package, Archive, Plus, Search, ExternalLink, X, User, Printer, FileText, BarChart3, FolderClosed, BookOpen, Send, Paperclip, UploadCloud, Trash2, ClipboardList, CheckCheck, AlertTriangle, Eye, Filter, TrendingUp, DollarSign, Package2, ArrowUpDown } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import ConfirmDialog from '../../components/ConfirmDialog'
+import { logAudit } from '../../lib/audit'
 
 export default function MyDepartmentPage() {
   const [loading, setLoading] = useState(true)
@@ -61,6 +63,20 @@ export default function MyDepartmentPage() {
   const [isPetitionDrawerOpen, setIsPetitionDrawerOpen] = useState(false)
 
   const isAdmin = currentUser?.system_role === 'admin' || currentUser?.system_role === 'superadmin'
+
+  // --- STANY: FILTROWANIE ---
+  const [grantSearch, setGrantSearch] = useState('')
+  const [grantStatusFilter, setGrantStatusFilter] = useState('all')
+  const [grantTypeFilter, setGrantTypeFilter] = useState('all')
+  const [assetTypeFilter, setAssetTypeFilter] = useState('all')
+  const [assetStatusFilter, setAssetStatusFilter] = useState('all')
+  const [loanStatusFilter, setLoanStatusFilter] = useState('all')
+
+  // --- STANY: POTWIERDZENIE USUNIĘCIA ---
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; type: string; id: string }>({ open: false, type: '', id: '' })
+
+  // --- STANY: SZUFLADA GRANTU ---
+  const [isGrantDrawerOpen2, setIsGrantDrawerOpen2] = useState(false)
 
   useEffect(() => {
     fetchDepartmentData()
@@ -199,6 +215,35 @@ export default function MyDepartmentPage() {
     setIsPetitionDrawerOpen(false); fetchDepartmentData(); toast.success('Usunięto', { id: toastId })
   }
 
+  // === LOGIKA: USUWANIE (ADMIN) ===
+  const deleteGrant = async (id: string) => {
+    const toastId = toast.loading('Usuwanie...')
+    await supabase.from('grants_radar').delete().eq('id', id)
+    if (currentUser) await logAudit({ userId: currentUser.id, action: 'DELETE', entityType: 'grant', entityId: id })
+    setIsGrantDrawerOpen(false)
+    fetchDepartmentData()
+    toast.success('Usunięto z radaru', { id: toastId })
+    setConfirmDelete({ open: false, type: '', id: '' })
+  }
+
+  const deleteAsset = async (id: string) => {
+    const toastId = toast.loading('Usuwanie...')
+    await supabase.from('assets').delete().eq('id', id)
+    if (currentUser) await logAudit({ userId: currentUser.id, action: 'DELETE', entityType: 'asset', entityId: id })
+    fetchDepartmentData()
+    toast.success('Usunięto zasób', { id: toastId })
+    setConfirmDelete({ open: false, type: '', id: '' })
+  }
+
+  const deleteLoan = async (id: string) => {
+    const toastId = toast.loading('Usuwanie...')
+    await supabase.from('equipment_loans').delete().eq('id', id)
+    if (currentUser) await logAudit({ userId: currentUser.id, action: 'DELETE', entityType: 'equipment_loan', entityId: id })
+    fetchDepartmentData()
+    toast.success('Usunięto umowę', { id: toastId })
+    setConfirmDelete({ open: false, type: '', id: '' })
+  }
+
   const handleAiKBUpload = async (e: React.ChangeEvent<HTMLInputElement>, recordId: string, table: 'archive_folders' | 'petitions', currentRecord: any) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -258,6 +303,12 @@ export default function MyDepartmentPage() {
   }
   const updateGrantStatus = async (id: string, newStatus: string) => {
     await supabase.from('grants_radar').update({ status: newStatus }).eq('id', id); fetchDepartmentData();
+    if (selectedGrant?.id === id) setSelectedGrant({ ...selectedGrant, status: newStatus })
+  }
+
+  const updateGrantDecision = async (id: string, newDecision: string) => {
+    await supabase.from('grants_radar').update({ decision: newDecision }).eq('id', id); fetchDepartmentData();
+    if (selectedGrant?.id === id) setSelectedGrant({ ...selectedGrant, decision: newDecision })
   }
 
   // === LOGIKA: LOGITECH ===
@@ -293,29 +344,82 @@ export default function MyDepartmentPage() {
     const deptName = department.name.toLowerCase()
     
     if (deptName.includes('dotacj')) {
+      const filteredGrants = grants.filter(g => {
+        const matchSearch = !grantSearch || g.name.toLowerCase().includes(grantSearch.toLowerCase()) || g.signature?.toLowerCase().includes(grantSearch.toLowerCase())
+        const matchStatus = grantStatusFilter === 'all' || g.status === grantStatusFilter
+        const matchType = grantTypeFilter === 'all' || g.type === grantTypeFilter
+        return matchSearch && matchStatus && matchType
+      })
+      const totalAmount = grants.filter(g => g.max_amount).reduce((sum: number, g: any) => sum + (g.max_amount || 0), 0)
+      const accepted = grants.filter(g => g.decision === 'ZAAKCEPTOWANE').length
+      const inProgress = grants.filter(g => g.status === 'W TOKU').length
+
       return (
-        <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
-          <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
-            <div><h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><PiggyBank className="text-green-500" size={20} /> Radar Dotacji i Patronatów</h2></div>
-            <button onClick={() => setIsGrantModalOpen(true)} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-sm flex items-center gap-2"><Plus size={16}/> Nowa Pozycja</button>
+        <div className="flex flex-col gap-6">
+          {/* Statystyki */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Łącznie pozycji</p>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{grants.length}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Zaakceptowane</p>
+              <p className="text-3xl font-extrabold text-green-600 dark:text-green-400">{accepted}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Łączna kwota</p>
+              <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{totalAmount > 0 ? `${totalAmount.toLocaleString('pl-PL')} zł` : '—'}</p>
+            </div>
           </div>
-          <div className="flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full text-left min-w-[800px]">
-              <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 backdrop-blur-sm">
-                <tr><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">ID</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nazwa / Org</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Typ</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center">Do Końca</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Status</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {grants.map(g => (
-                  <tr key={g.id} onClick={() => { setSelectedGrant(g); setIsGrantDrawerOpen(true) }} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer">
-                    <td className="px-4 py-3"><span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{g.signature}</span></td>
-                    <td className="px-4 py-3"><div className="font-bold text-sm text-slate-900 dark:text-white truncate max-w-[250px]">{g.name}</div></td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${g.type === 'PATRONAT' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'}`}>{g.type}</span></td>
-                    <td className="px-4 py-3 text-center text-slate-700 dark:text-slate-300"><div className="text-xs">{g.deadline}</div></td>
-                    <td className="px-4 py-3"><div className={`text-[10px] font-bold border inline-block px-2 py-0.5 rounded ${g.status === 'RADAR' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' : g.status === 'ARCHIWUM' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'}`}>{g.status}</div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
+            <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-3 shrink-0">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><PiggyBank className="text-green-500" size={20} /> Radar Dotacji i Patronatów</h2>
+                <button onClick={() => setIsGrantModalOpen(true)} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-sm flex items-center gap-2"><Plus size={16}/> Nowa Pozycja</button>
+              </div>
+              {/* Filtry */}
+              <div className="flex flex-wrap gap-2">
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                  <input type="text" placeholder="Szukaj..." value={grantSearch} onChange={e => setGrantSearch(e.target.value)} className="w-full pl-8 pr-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white" />
+                </div>
+                <select value={grantStatusFilter} onChange={e => setGrantStatusFilter(e.target.value)} className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-700 dark:text-slate-300">
+                  <option value="all">Wszystkie statusy</option>
+                  <option value="RADAR">Radar</option>
+                  <option value="W TOKU">W toku</option>
+                  <option value="ARCHIWUM">Archiwum</option>
+                </select>
+                <select value={grantTypeFilter} onChange={e => setGrantTypeFilter(e.target.value)} className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-700 dark:text-slate-300">
+                  <option value="all">Wszystkie typy</option>
+                  <option value="DOTACJA">Dotacja</option>
+                  <option value="PATRONAT">Patronat</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto custom-scrollbar">
+              <table className="w-full text-left min-w-[800px]">
+                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 backdrop-blur-sm">
+                  <tr><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">ID</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nazwa / Org</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Typ</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center">Do Końca</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Status</th><th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Decyzja</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                  {filteredGrants.map(g => (
+                    <tr key={g.id} onClick={() => { setSelectedGrant(g); setIsGrantDrawerOpen(true) }} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer">
+                      <td className="px-4 py-3"><span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{g.signature}</span></td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-sm text-slate-900 dark:text-white truncate max-w-[250px]">{g.name}</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{g.organizer}</div>
+                      </td>
+                      <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${g.type === 'PATRONAT' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'}`}>{g.type}</span></td>
+                      <td className="px-4 py-3 text-center text-slate-700 dark:text-slate-300"><div className="text-xs">{g.deadline}</div></td>
+                      <td className="px-4 py-3"><div className={`text-[10px] font-bold border inline-block px-2 py-0.5 rounded ${g.status === 'RADAR' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' : g.status === 'ARCHIWUM' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'}`}>{g.status}</div></td>
+                      <td className="px-4 py-3"><div className={`text-[10px] font-bold border inline-block px-2 py-0.5 rounded ${g.decision === 'ZAAKCEPTOWANE' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : g.decision === 'ODRZUCONE' ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>{g.decision}</div></td>
+                    </tr>
+                  ))}
+                  {filteredGrants.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">Brak wyników dla wybranych filtrów</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )
@@ -323,6 +427,15 @@ export default function MyDepartmentPage() {
     
     if (deptName.includes('logitech') || deptName.includes('logistyk')) {
       const { sorted: timelineData, maxVal } = getTimelineData()
+
+      const filteredAssets = assets.filter(a => {
+        const matchType = assetTypeFilter === 'all' || a.asset_type === assetTypeFilter
+        const matchStatus = assetStatusFilter === 'all' || a.status === assetStatusFilter
+        return matchType && matchStatus
+      })
+      const filteredLoans = loans.filter(l => loanStatusFilter === 'all' || l.status === loanStatusFilter)
+      const loanedCount = loans.filter(l => l.status === 'Wypożyczone').length
+      const maintenanceCount = assets.filter(a => a.status === 'maintenance').length
 
       const reportStatusConfig: Record<string, { label: string; cls: string }> = {
         new:             { label: 'Nowy',          cls: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800' },
@@ -333,30 +446,87 @@ export default function MyDepartmentPage() {
 
       return (
         <div className="flex flex-col gap-8">
+          {/* Statystyki */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Zasoby łącznie</p>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{assets.length}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Aktywne wypożyczenia</p>
+              <p className="text-3xl font-extrabold text-orange-500">{loanedCount}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Awarie / problemy</p>
+              <p className="text-3xl font-extrabold text-red-500">{maintenanceCount}</p>
+            </div>
+          </div>
+
           <div className="flex flex-col bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center"><h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><Printer className="text-blue-500" size={20} /> Biuro i Zaopatrzenie</h2><button onClick={() => setIsAssetModalOpen(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm flex gap-2"><Plus size={16}/> Dodaj</button></div>
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-wrap gap-2 justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><Printer className="text-blue-500" size={20} /> Biuro i Zaopatrzenie</h2>
+              <div className="flex gap-2 items-center">
+                <select value={assetTypeFilter} onChange={e => setAssetTypeFilter(e.target.value)} className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-700 dark:text-slate-300">
+                  <option value="all">Wszystkie typy</option>
+                  <option value="Artykuły biurowe">Artykuły biurowe</option>
+                  <option value="Sprzęt IT">Sprzęt IT</option>
+                  <option value="Meble">Meble</option>
+                  <option value="Audio-Video">Audio-Video</option>
+                  <option value="Inne">Inne</option>
+                </select>
+                <select value={assetStatusFilter} onChange={e => setAssetStatusFilter(e.target.value)} className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-700 dark:text-slate-300">
+                  <option value="all">Wszystkie statusy</option>
+                  <option value="available">Dostępne</option>
+                  <option value="low_stock">Mało</option>
+                  <option value="maintenance">Awaria</option>
+                </select>
+                <button onClick={() => setIsAssetModalOpen(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm flex gap-2"><Plus size={16}/> Dodaj</button>
+              </div>
+            </div>
             <div className="overflow-x-auto p-6"><div className="flex gap-4 pb-2 custom-scrollbar">
-                {assets.map(asset => (
+                {filteredAssets.map(asset => (
                   <div key={asset.id} className={`min-w-[250px] p-4 rounded-2xl border transition-colors relative group shrink-0 ${asset.status === 'maintenance' ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/50' : asset.status === 'low_stock' ? 'bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900/50' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-700'}`}>
-                    <div className="flex justify-between items-start mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{asset.asset_type}</span><select className="text-[10px] font-bold px-2 py-1 rounded outline-none border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700" value={asset.status} onChange={(e) => updateAssetStatus(asset.id, e.target.value)}><option value="available">✅ Dostępne</option><option value="low_stock">⚠️ Mało</option><option value="maintenance">🚨 Awaria</option></select></div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{asset.asset_type}</span>
+                      <div className="flex items-center gap-1">
+                        <select className="text-[10px] font-bold px-2 py-1 rounded outline-none border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700" value={asset.status} onChange={(e) => updateAssetStatus(asset.id, e.target.value)}><option value="available">✅ Dostępne</option><option value="low_stock">⚠️ Mało</option><option value="maintenance">🚨 Awaria</option></select>
+                        {isAdmin && <button onClick={() => setConfirmDelete({ open: true, type: 'asset', id: asset.id })} className="p-1 text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
+                      </div>
+                    </div>
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">{asset.name}</h3>
+                    {asset.location && <p className="text-[10px] text-slate-400">{asset.location}</p>}
                   </div>
                 ))}
+                {filteredAssets.length === 0 && <div className="text-sm text-slate-400 dark:text-slate-500 py-4">Brak zasobów dla wybranych filtrów</div>}
             </div></div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted h-[400px] flex flex-col">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center"><h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><FileText className="text-orange-500" size={20} /> Rejestr Umów Użyczenia</h2><button onClick={() => setIsLoanModalOpen(true)} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm flex gap-2"><Plus size={16}/> Dodaj</button></div>
+              <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-wrap gap-2 justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><FileText className="text-orange-500" size={20} /> Rejestr Umów Użyczenia</h2>
+                <div className="flex gap-2 items-center">
+                  <select value={loanStatusFilter} onChange={e => setLoanStatusFilter(e.target.value)} className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-700 dark:text-slate-300">
+                    <option value="all">Wszystkie</option>
+                    <option value="Wypożyczone">Wypożyczone</option>
+                    <option value="Zwrócone">Zwrócone</option>
+                  </select>
+                  <button onClick={() => setIsLoanModalOpen(true)} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm flex gap-2"><Plus size={16}/> Dodaj</button>
+                </div>
+              </div>
               <div className="flex-1 overflow-auto custom-scrollbar">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-900/80 sticky top-0 z-10 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-700"><tr><th className="px-4 py-3">Nr</th><th className="px-4 py-3">Sprzęt</th><th className="px-4 py-3 text-center">Daty</th><th className="px-4 py-3 text-center">Status</th></tr></thead>
+                  <thead className="bg-slate-50 dark:bg-slate-900/80 sticky top-0 z-10 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-700"><tr><th className="px-4 py-3">Nr</th><th className="px-4 py-3">Sprzęt / Pożyczkobiorca</th><th className="px-4 py-3 text-center">Daty</th><th className="px-4 py-3 text-center">Status</th>{isAdmin && <th className="px-4 py-3"></th>}</tr></thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm">
-                    {loans.map(loan => (
+                    {filteredLoans.map(loan => (
                       <tr key={loan.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                         <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{loan.agreement_number}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{loan.item_category}</td>
-                        <td className="px-4 py-3 text-center text-xs text-slate-600 dark:text-slate-400">{loan.issue_date}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-900 dark:text-white">{loan.item_category}</div>
+                          {loan.borrower_name && <div className="text-[10px] text-slate-500">{loan.borrower_name}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs text-slate-600 dark:text-slate-400">{loan.issue_date}{loan.return_date && <><br/><span className="text-orange-500">→ {loan.return_date}</span></>}</td>
                         <td className="px-4 py-3 text-center"><button onClick={() => toggleLoanStatus(loan.id, loan.status)} className={`px-3 py-1 text-[10px] font-bold border rounded-lg uppercase ${loan.status === 'Zwrócone' ? 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' : 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-400'}`}>{loan.status}</button></td>
+                        {isAdmin && <td className="px-4 py-3 text-center"><button onClick={() => setConfirmDelete({ open: true, type: 'loan', id: loan.id })} className="p-1 text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors"><Trash2 size={14}/></button></td>}
                       </tr>
                     ))}
                   </tbody>
@@ -839,10 +1009,194 @@ export default function MyDepartmentPage() {
         </div>
       )}
 
-      {/* GRANTY I ZASOBY (Dla Logiki React) */}
-      {isGrantModalOpen && <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center"><div className="bg-white dark:bg-slate-800 p-6 rounded-xl"><button onClick={() => setIsGrantModalOpen(false)}>Zamknij</button></div></div>}
-      {isAssetModalOpen && <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center"><div className="bg-white dark:bg-slate-800 p-6 rounded-xl"><button onClick={() => setIsAssetModalOpen(false)}>Zamknij</button></div></div>}
-      {isLoanModalOpen && <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center"><div className="bg-white dark:bg-slate-800 p-6 rounded-xl"><button onClick={() => setIsLoanModalOpen(false)}>Zamknij</button></div></div>}
+      {/* === MODAL: NOWA DOTACJA / PATRONAT === */}
+      {isGrantModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><PiggyBank className="text-green-500" size={22} /> Nowa Dotacja / Patronat</h2>
+              <button onClick={() => setIsGrantModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddGrant} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Sygnatura / ID</label><input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.signature} onChange={e => setGrantForm({...grantForm, signature: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Typ *</label>
+                  <select required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.type} onChange={e => setGrantForm({...grantForm, type: e.target.value})}>
+                    <option value="DOTACJA">Dotacja</option><option value="PATRONAT">Patronat</option>
+                  </select>
+                </div>
+              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa programu *</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.name} onChange={e => setGrantForm({...grantForm, name: e.target.value})} /></div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Organizator</label><input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.organizer} onChange={e => setGrantForm({...grantForm, organizer: e.target.value})} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Maks. kwota (zł)</label><input type="number" min="0" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.max_amount} onChange={e => setGrantForm({...grantForm, max_amount: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Zasięg</label>
+                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.scope} onChange={e => setGrantForm({...grantForm, scope: e.target.value})}>
+                    <option value="Polska">Polska</option><option value="Europejski">Europejski</option><option value="Regionalny">Regionalny</option><option value="Lokalny">Lokalny</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Termin złożenia</label><input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={grantForm.deadline} onChange={e => setGrantForm({...grantForm, deadline: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status</label>
+                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.status} onChange={e => setGrantForm({...grantForm, status: e.target.value})}>
+                    <option value="RADAR">Radar</option><option value="W TOKU">W toku</option><option value="ARCHIWUM">Archiwum</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Decyzja</label>
+                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.decision} onChange={e => setGrantForm({...grantForm, decision: e.target.value})}>
+                    <option value="OCZEKUJE">Oczekuje</option><option value="ZAAKCEPTOWANE">Zaakceptowane</option><option value="ODRZUCONE">Odrzucone</option>
+                  </select>
+                </div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Opiekun</label>
+                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.owner_id} onChange={e => setGrantForm({...grantForm, owner_id: e.target.value})}>
+                    <option value="">— Nieprzypisany —</option>
+                    {deptMembers.map(m => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Link do Drive</label><input type="url" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={grantForm.drive_link} onChange={e => setGrantForm({...grantForm, drive_link: e.target.value})} /></div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Opis / Szczegóły</label><textarea rows={3} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white resize-none custom-scrollbar" value={grantForm.description} onChange={e => setGrantForm({...grantForm, description: e.target.value})} /></div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Notatki wewnętrzne</label><textarea rows={2} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white resize-none custom-scrollbar" value={grantForm.notes} onChange={e => setGrantForm({...grantForm, notes: e.target.value})} /></div>
+              <button type="submit" disabled={isSubmittingGrant} className="w-full py-4 mt-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl flex justify-center items-center gap-2 transition-colors disabled:opacity-70">
+                {isSubmittingGrant ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Dodaj do Radaru
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === SZUFLADA GRANTU === */}
+      {isGrantDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" onClick={() => setIsGrantDrawerOpen(false)} />}
+      <div className={`fixed top-0 right-0 h-full w-full md:w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isGrantDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {selectedGrant && (
+          <>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex gap-2">
+                  <select className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg px-3 py-1.5 outline-none" value={selectedGrant.status} onChange={e => updateGrantStatus(selectedGrant.id, e.target.value)}>
+                    <option value="RADAR">Radar</option><option value="W TOKU">W toku</option><option value="ARCHIWUM">Archiwum</option>
+                  </select>
+                  <select className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded-lg px-3 py-1.5 outline-none" value={selectedGrant.decision} onChange={e => updateGrantDecision(selectedGrant.id, e.target.value)}>
+                    <option value="OCZEKUJE">Oczekuje</option><option value="ZAAKCEPTOWANE">Zaakceptowane</option><option value="ODRZUCONE">Odrzucone</option>
+                  </select>
+                </div>
+                <div className="flex gap-1">
+                  {isAdmin && <button onClick={() => setConfirmDelete({ open: true, type: 'grant', id: selectedGrant.id })} className="text-slate-400 hover:text-red-500 p-1 transition-colors"><Trash2 size={18} /></button>}
+                  <button onClick={() => setIsGrantDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"><X size={20} /></button>
+                </div>
+              </div>
+              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border mb-2 ${selectedGrant.type === 'PATRONAT' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'}`}>{selectedGrant.type}</span>
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight">{selectedGrant.name}</h2>
+              {selectedGrant.organizer && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{selectedGrant.organizer}</p>}
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                {selectedGrant.deadline && <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl"><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Termin</p><p className="text-sm font-bold text-slate-900 dark:text-white">{selectedGrant.deadline}</p></div>}
+                {selectedGrant.max_amount && <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl"><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Maks. kwota</p><p className="text-sm font-bold text-green-600 dark:text-green-400">{Number(selectedGrant.max_amount).toLocaleString('pl-PL')} zł</p></div>}
+                {selectedGrant.scope && <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl"><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Zasięg</p><p className="text-sm font-bold text-slate-900 dark:text-white">{selectedGrant.scope}</p></div>}
+                {selectedGrant.owner && <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl"><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Opiekun</p><p className="text-sm font-bold text-slate-900 dark:text-white">{selectedGrant.owner.first_name} {selectedGrant.owner.last_name}</p></div>}
+              </div>
+              {selectedGrant.description && <div><p className="text-xs font-bold text-slate-500 uppercase mb-2">Opis</p><p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{selectedGrant.description}</p></div>}
+              {selectedGrant.notes && <div><p className="text-xs font-bold text-slate-500 uppercase mb-2">Notatki</p><p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{selectedGrant.notes}</p></div>}
+              {selectedGrant.drive_link && <a href={selectedGrant.drive_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm font-bold hover:underline"><ExternalLink size={16}/> Otwórz w Google Drive</a>}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* === MODAL: NOWY ZASÓB === */}
+      {isAssetModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Package className="text-blue-500" size={22}/> Dodaj Zasób</h2>
+              <button onClick={() => setIsAssetModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddAsset} className="p-6 space-y-4">
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa *</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={assetForm.name} onChange={e => setAssetForm({...assetForm, name: e.target.value})} /></div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Typ zasobu *</label>
+                <select required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={assetForm.asset_type} onChange={e => setAssetForm({...assetForm, asset_type: e.target.value})}>
+                  <option value="Artykuły biurowe">Artykuły biurowe</option>
+                  <option value="Sprzęt IT">Sprzęt IT</option>
+                  <option value="Meble">Meble</option>
+                  <option value="Audio-Video">Audio-Video</option>
+                  <option value="Inne">Inne</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status</label>
+                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={assetForm.status} onChange={e => setAssetForm({...assetForm, status: e.target.value})}>
+                    <option value="available">Dostępne</option><option value="low_stock">Mało</option><option value="maintenance">Awaria</option>
+                  </select>
+                </div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Lokalizacja</label><input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={assetForm.location} onChange={e => setAssetForm({...assetForm, location: e.target.value})} /></div>
+              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Notatki</label><textarea rows={2} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white resize-none" value={assetForm.notes} onChange={e => setAssetForm({...assetForm, notes: e.target.value})} /></div>
+              <button type="submit" disabled={isSubmittingAsset} className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex justify-center items-center gap-2 transition-colors disabled:opacity-70">
+                {isSubmittingAsset ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18}/>} Dodaj zasób
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === MODAL: NOWA UMOWA UŻYCZENIA === */}
+      {isLoanModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><FileText className="text-orange-500" size={22}/> Nowa Umowa Użyczenia</h2>
+              <button onClick={() => setIsLoanModalOpen(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddLoan} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nr umowy</label><input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={loanForm.agreement_number} onChange={e => setLoanForm({...loanForm, agreement_number: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Kategoria sprzętu *</label>
+                  <select required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={loanForm.item_category} onChange={e => setLoanForm({...loanForm, item_category: e.target.value})}>
+                    <option value="Namiot Plenerowy">Namiot Plenerowy</option>
+                    <option value="Sprzęt Audio">Sprzęt Audio</option>
+                    <option value="Projektor">Projektor</option>
+                    <option value="Meble">Meble</option>
+                    <option value="Inne">Inne</option>
+                  </select>
+                </div>
+              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pożyczkobiorca *</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={loanForm.borrower_name} onChange={e => setLoanForm({...loanForm, borrower_name: e.target.value})} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data wydania *</label><input type="date" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={loanForm.issue_date} onChange={e => setLoanForm({...loanForm, issue_date: e.target.value})} /></div>
+                <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data zwrotu</label><input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={loanForm.return_date} onChange={e => setLoanForm({...loanForm, return_date: e.target.value})} /></div>
+              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status</label>
+                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={loanForm.status} onChange={e => setLoanForm({...loanForm, status: e.target.value})}>
+                  <option value="Wypożyczone">Wypożyczone</option><option value="Zwrócone">Zwrócone</option>
+                </select>
+              </div>
+              <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Notatki</label><textarea rows={2} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white resize-none" value={loanForm.notes} onChange={e => setLoanForm({...loanForm, notes: e.target.value})} /></div>
+              <button type="submit" disabled={isSubmittingLoan} className="w-full py-4 mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl flex justify-center items-center gap-2 transition-colors disabled:opacity-70">
+                {isSubmittingLoan ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18}/>} Wpisz umowę
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === CONFIRM DIALOG === */}
+      <ConfirmDialog
+        isOpen={confirmDelete.open}
+        title="Potwierdź usunięcie"
+        description="Tej operacji nie można cofnąć."
+        confirmLabel="Usuń"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmDelete.type === 'grant') deleteGrant(confirmDelete.id)
+          else if (confirmDelete.type === 'asset') deleteAsset(confirmDelete.id)
+          else if (confirmDelete.type === 'loan') deleteLoan(confirmDelete.id)
+        }}
+        onCancel={() => setConfirmDelete({ open: false, type: '', id: '' })}
+      />
     </div>
   )
 }
