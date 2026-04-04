@@ -10,11 +10,13 @@ const supabase = createClient(
 // GET /api/notifications/deadline-check
 // Wywołać jako cron (np. Vercel Cron Job co 24h)
 export async function GET(request: Request) {
-  // Opcjonalna weryfikacja secret dla cron
-  const authHeader = request.headers.get('Authorization')
+  // Opcjonalna weryfikacja secret dla cron (przez query param ?secret=)
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (cronSecret) {
+    const { searchParams } = new URL(request.url)
+    if (searchParams.get('secret') !== cronSecret) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   try {
