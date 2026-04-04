@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import Sidebar from '../components/Sidebar'
-import { Briefcase, CheckSquare, Calendar, Activity, TrendingUp, Clock, AlertCircle, ArrowRight } from 'lucide-react'
+import { Briefcase, CheckSquare, Calendar, Activity, TrendingUp, Clock, AlertCircle, ArrowRight, Sun } from 'lucide-react'
 import Link from 'next/link'
 import type { Case, Task } from '../types'
+import SkeletonLoader from '../components/SkeletonLoader'
+import EmptyState from '../components/EmptyState'
 
 export default function DashboardPage() {
   const { user: currentUser } = useCurrentUser()
@@ -21,6 +23,8 @@ export default function DashboardPage() {
 
   const [urgentTasks, setUrgentTasks] = useState<Task[]>([])
   const [recentCases, setRecentCases] = useState<Case[]>([])
+  const [myTodayTasks, setMyTodayTasks] = useState<Task[]>([])
+  const [weekDeadlines, setWeekDeadlines] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -86,7 +90,24 @@ export default function DashboardPage() {
 
     if (tasksDueSoon) setUrgentTasks(tasksDueSoon)
     if (latestCases) setRecentCases(latestCases)
-      
+
+    // Moje zadania na dziś
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.email) {
+      const { data: userData } = await supabase.from('users').select('id').eq('email', session.user.email).single()
+      if (userData) {
+        const { data: todayTasks } = await supabase.from('tasks').select('*').eq('owner_id', userData.id).eq('deadline', todayStr).neq('status', 'done')
+        if (todayTasks) setMyTodayTasks(todayTasks)
+
+        // Terminy w tym tygodniu
+        const endOfWeek = new Date(today)
+        endOfWeek.setDate(today.getDate() - today.getDay() + 7)
+        const endOfWeekStr = endOfWeek.toISOString().split('T')[0]
+        const { data: weekTasks } = await supabase.from('tasks').select('*').eq('owner_id', userData.id).gte('deadline', todayStr).lte('deadline', endOfWeekStr).neq('status', 'done').order('deadline', { ascending: true }).limit(5)
+        if (weekTasks) setWeekDeadlines(weekTasks)
+      }
+    }
+
     setLoading(false)
   }
 
@@ -122,8 +143,11 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <SkeletonLoader variant="card" count={4} />
+            </div>
+            <SkeletonLoader variant="card" count={3} />
           </div>
         ) : (
           <>
@@ -192,7 +216,7 @@ export default function DashboardPage() {
                     <AlertCircle size={20} className="text-red-500"/> Pilne Zadania
                   </h2>
                 </div>
-                
+
                 <div className="space-y-4">
                   {urgentTasks.length > 0 ? urgentTasks.map(task => {
                     const isOverdue = task.deadline && new Date(task.deadline) < new Date()
@@ -213,9 +237,7 @@ export default function DashboardPage() {
                       </Link>
                     )
                   }) : (
-                    <div className="text-center p-8 text-slate-400 dark:text-slate-500 font-medium border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl">
-                      Brak pilnych zadań. Świetna robota!
-                    </div>
+                    <EmptyState icon={CheckSquare} title="Brak pilnych zadań" description="Świetna robota!" />
                   )}
                 </div>
 
@@ -224,6 +246,45 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
+            </div>
+
+            {/* Moje zadania na dziś + Terminy w tygodniu */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors softly-lifted">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                  <Sun size={20} className="text-yellow-500"/> Moje zadania na dziś
+                </h2>
+                {myTodayTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {myTodayTasks.map(task => (
+                      <Link key={task.id} href="/tasks" className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                        <CheckSquare size={16} className="text-yellow-500 shrink-0" />
+                        <span className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">{task.title}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState icon={CheckSquare} title="Brak zadań na dziś" description="Możesz odpocząć!" />
+                )}
+              </div>
+
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors softly-lifted">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                  <Calendar size={20} className="text-blue-500"/> Terminy w tym tygodniu
+                </h2>
+                {weekDeadlines.length > 0 ? (
+                  <div className="space-y-2">
+                    {weekDeadlines.map(task => (
+                      <Link key={task.id} href="/tasks" className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">{task.title}</span>
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0 ml-2">{task.deadline?.substring(5)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState icon={Calendar} title="Brak terminów w tym tygodniu" description="Kalendarz wolny!" />
+                )}
+              </div>
             </div>
           </>
         )}
