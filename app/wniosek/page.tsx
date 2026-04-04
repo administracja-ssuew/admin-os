@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { FileUpload, sanitizeFileName } from '../../components/FileUpload'
+import FileUpload, { sanitizeFileName } from '../../components/FileUpload'
 import type { UploadedFile } from '../../components/FileUpload'
 import { Briefcase, Send, CheckCircle, AlertCircle, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Phone, Search, ExternalLink } from 'lucide-react'
 import Link from 'next/link'

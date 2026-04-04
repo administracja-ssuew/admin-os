@@ -85,15 +85,17 @@ export default function ExecutivePanelPage() {
     setIsSubmittingDecision(false)
   }
 
-  const approveDecision = async (decisionId: string) => {
+  const approveDecision = async (decision: any) => {
     if (!currentUser) return
+    if (decision.author_id === currentUser.id) {
+      toast.error('Nie możesz zatwierdzić własnej uchwały.')
+      return
+    }
     const toastId = toast.loading('Nadawanie mocy prawnej...')
-    
-    // Zatwierdzający nie powinien być tą samą osobą co autor (choć Superadmin może wszystko)
     const { error } = await supabase.from('decisions').update({
       status: 'active',
       approver_id: currentUser.id
-    }).eq('id', decisionId)
+    }).eq('id', decision.id)
 
     if (!error) {
       fetchExecutiveData()
@@ -188,7 +190,12 @@ export default function ExecutivePanelPage() {
                             <Check size={10}/> Zatwierdził: <span className="font-bold">{dec.approver ? `${dec.approver.first_name} ${dec.approver.last_name}` : 'System'}</span>
                           </div>
                         ) : (
-                          <button onClick={() => approveDecision(dec.id)} className="mt-2 w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-1 transition-colors">
+                          <button
+                            onClick={() => approveDecision(dec)}
+                            disabled={dec.author_id === currentUser?.id}
+                            title={dec.author_id === currentUser?.id ? 'Nie możesz zatwierdzić własnej uchwały' : undefined}
+                            className="mt-2 w-full py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-1 transition-colors"
+                          >
                             <Gavel size={12}/> Zatwierdź i nadaj moc
                           </button>
                         )}

@@ -74,7 +74,6 @@ export default function Sidebar() {
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
         <Link href="/" className={getLinkStyle('/')}>📊 Panel Główny</Link>
         <Link href="/my-department" className={getLinkStyle('/my-department')}>🎯 Moja Podkomisja</Link>
-        <Link href="/calendar" className={getLinkStyle('/calendar')}>🗓️ Kalendarz</Link>
         <Link href="/cases" className={getLinkStyle('/cases')}>📁 Rejestr Spraw</Link>
         <Link href="/tasks" className={getLinkStyle('/tasks')}>✅ Zadania</Link>
         <Link href="/cred" className={getLinkStyle('/cred')}><span className="flex items-center gap-2"><FileText size={16} />CRED</span></Link>

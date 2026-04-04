@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { BookOpen, FileText, ExternalLink, HardHat, AlertTriangle, Shield, Search, Lock, ChevronRight, Save, Plus, X, Loader2 } from 'lucide-react'
+import { BookOpen, FileText, ExternalLink, HardHat, AlertTriangle, Shield, Search, Lock, ChevronRight, Save, Plus, X, Loader2, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 export default function KnowledgePage() {
   const [articles, setArticles] = useState<any[]>([])
@@ -15,6 +16,7 @@ export default function KnowledgePage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({ title: '', content: '', drive_link: '', category: 'Procedury' })
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // Twardo zakodowane zakładki "Work in Progress" o które prosiłeś
   const wipTabs = [
@@ -71,6 +73,17 @@ export default function KnowledgePage() {
         fetchData()
       } else toast.error('Błąd', { id: toastId })
     }
+  }
+
+  const handleDeleteArticle = async (id: string) => {
+    const toastId = toast.loading('Usuwanie...')
+    const { error } = await supabase.from('knowledge_articles').delete().eq('id', id)
+    if (!error) {
+      toast.success('Artykuł usunięty', { id: toastId })
+      setActiveArticle(null)
+      fetchData()
+    } else toast.error('Błąd usuwania', { id: toastId })
+    setConfirmDeleteId(null)
   }
 
   const startNewArticle = () => {
@@ -221,8 +234,11 @@ export default function KnowledgePage() {
                       <span className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-slate-200 dark:border-slate-600">
                         {activeArticle.category}
                       </span>
-                      {isAdmin && (
-                        <button onClick={() => setIsEditing(true)} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline">Edytuj treść</button>
+                      {isAdmin && !activeArticle.id?.startsWith('wip-') && (
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setIsEditing(true)} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline">Edytuj treść</button>
+                          <button onClick={() => setConfirmDeleteId(activeArticle.id)} className="text-sm font-bold text-red-500 hover:text-red-700 dark:hover:text-red-400 flex items-center gap-1 transition-colors"><Trash2 size={14}/> Usuń</button>
+                        </div>
                       )}
                     </div>
                     <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">{activeArticle.title}</h2>
@@ -269,6 +285,16 @@ export default function KnowledgePage() {
           background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(100, 116, 139, 0.05) 10px, rgba(100, 116, 139, 0.05) 20px);
         }
       `}} />
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Usuń artykuł"
+        description="Tej operacji nie można cofnąć. Artykuł zostanie trwale usunięty z Bazy Wiedzy."
+        confirmLabel="Usuń"
+        variant="danger"
+        onConfirm={() => confirmDeleteId && handleDeleteArticle(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   )
 }

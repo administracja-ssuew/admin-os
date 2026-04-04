@@ -706,7 +706,106 @@ export default function MyDepartmentPage() {
       )
     }
 
-    return null
+    // ====================================================
+    // WIDOK OGÓLNY — fallback dla każdej innej podkomisji
+    // ====================================================
+    return (
+      <div className="flex flex-col gap-6">
+
+        {/* Statystyki */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Członkowie</p>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{deptMembers.length}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Aktywne zadania</p>
+            <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">{deptTasks.filter(t => t.status !== 'done').length}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 softly-lifted">
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Ukończone</p>
+            <p className="text-3xl font-extrabold text-green-600 dark:text-green-400">{deptTasks.filter(t => t.status === 'done').length}</p>
+          </div>
+        </div>
+
+        {/* Członkowie pionu */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Users className="text-blue-500" size={20} /> Skład Podkomisji
+            </h2>
+          </div>
+          <div className="p-5">
+            {deptMembers.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {deptMembers.map(m => (
+                  <div key={m.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl">
+                    <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
+                      {m.first_name.charAt(0)}{m.last_name.charAt(0)}
+                    </div>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{m.first_name} {m.last_name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">Brak przypisanych członków.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Zadania pionu — pełna lista z podziałem na statusy */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <CheckSquare className="text-green-500" size={20} /> Zadania Pionu
+            </h2>
+            <Link href="/tasks" className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Przejdź do Kanbanu</Link>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+            {deptTasks.length > 0 ? deptTasks.map(task => {
+              const isOverdue = task.deadline && new Date(task.deadline) < new Date()
+              const statusColors: Record<string, string> = {
+                to_do: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600',
+                in_progress: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800',
+                done: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800',
+              }
+              const statusLabel: Record<string, string> = { to_do: 'Do zrobienia', in_progress: 'W toku', done: 'Gotowe' }
+              return (
+                <div key={task.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{task.title}</p>
+                    {task.users && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {task.users.first_name} {task.users.last_name}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {task.deadline && (
+                      <span className={`text-xs font-bold flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
+                        <Clock size={12} /> {task.deadline.substring(5)}
+                      </span>
+                    )}
+                    <select
+                      value={task.status}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => updateDeptTaskStatus(task.id, e.target.value)}
+                      className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border outline-none cursor-pointer ${statusColors[task.status] || statusColors.to_do}`}
+                    >
+                      <option value="to_do">Do zrobienia</option>
+                      <option value="in_progress">W toku</option>
+                      <option value="done">Gotowe</option>
+                    </select>
+                  </div>
+                </div>
+              )
+            }) : (
+              <div className="p-8 text-center text-sm text-slate-400 dark:text-slate-500">Brak zadań przypisanych do tego pionu.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // --- RENDERY GŁÓWNE ---
