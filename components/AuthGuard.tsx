@@ -8,6 +8,7 @@ import { ShieldAlert, Loader2, LogOut, RefreshCw } from 'lucide-react'
 
 const ADMIN_ROUTES = ['/executive', '/users']
 const PUBLIC_ROUTES = ['/login', '/wniosek']
+const PUBLIC_PREFIXES = ['/wniosek']
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'pending' | 'active' | 'unauthenticated'>('loading')
@@ -80,7 +81,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Trasy publiczne — wpuszczamy każdego
-  if (PUBLIC_ROUTES.includes(pathname)) return <>{children}</>
+  if (PUBLIC_ROUTES.includes(pathname) || PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))) return <>{children}</>
 
   if (status === 'loading') {
     return (
