@@ -7,6 +7,7 @@ import Sidebar from '../../components/Sidebar'
 import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Building2, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Task, TaskStatus, AppUser, Department, Case } from '../../types'
+import { sendNotification } from '../../lib/notify'
 
 export default function TasksPage() {
   const { user: currentUser, isAdmin } = useCurrentUser()
@@ -186,7 +187,21 @@ export default function TasksPage() {
       project_id: formData.project_id || null, case_id: formData.case_id || null, deadline: formData.deadline || null, priority: formData.priority,
       status: formData.status, checklists: [], attachments: [], completion_percentage: 0
     }])
-    if (!error) { setFormData({ title: '', description: '', owner_id: '', department_id: '', project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' }); setIsModalOpen(false); fetchData(); toast.success('Zadanie wrzucone na tablicę!') } 
+    if (!error) {
+      setFormData({ title: '', description: '', owner_id: '', department_id: '', project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' }); setIsModalOpen(false); fetchData(); toast.success('Zadanie wrzucone na tablicę!')
+      // Powiadomienie do assignee
+      if (formData.owner_id) {
+        const assignee = users.find(u => u.id === formData.owner_id)
+        if (assignee) {
+          sendNotification('task_assigned', {
+            taskTitle: formData.title,
+            assigneeId: assignee.id,
+            assigneeEmail: assignee.email,
+            assignerName: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'System',
+          })
+        }
+      }
+    } 
     else { toast.error('Błąd dodawania zadania.') }
     setIsSubmitting(false)
   }

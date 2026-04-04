@@ -8,6 +8,7 @@ import FilterBar, { FilterConfig } from '../../components/FilterBar'
 import FileUpload from '../../components/FileUpload'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { logAudit } from '../../lib/audit'
+import { sendNotification } from '../../lib/notify'
 import {
   Briefcase, Plus, FileText, Link as LinkIcon, X, Clock, User,
   Building2, Send, Loader2, Shield, Paperclip, ChevronLeft,
@@ -112,6 +113,18 @@ export default function CasesPage() {
       setStatusDropdownOpen(false)
       toast.success(`Status zmieniony na: ${statusLabel(newStatus)}`)
       await logAudit({ userId: currentUser.id, action: 'case.status_change', entityType: 'case', entityId: selectedCase.id, oldValue: { status: oldStatus }, newValue: { status: newStatus } })
+      // Powiadomienie do właściciela sprawy
+      if (selectedCase.owner_id && selectedCase.owner_id !== currentUser.id) {
+        const owner = users.find(u => u.id === selectedCase.owner_id)
+        sendNotification('case_status_changed', {
+          caseNumber: selectedCase.case_number,
+          caseTitle: selectedCase.title,
+          oldStatus,
+          newStatus,
+          ownerId: selectedCase.owner_id,
+          ownerEmail: owner?.email,
+        })
+      }
       fetchData()
     } else toast.error('Błąd zmiany statusu')
   }
@@ -147,7 +160,20 @@ export default function CasesPage() {
     if (!newComment.trim() || !selectedCase || !currentUser) return
     setIsSendingComment(true)
     const { error } = await supabase.from('case_comments').insert([{ case_id: selectedCase.id, user_id: currentUser.id, content: newComment }])
-    if (!error) { setNewComment(''); fetchComments(selectedCase.id) }
+    if (!error) {
+      setNewComment(''); fetchComments(selectedCase.id)
+      // Powiadomienie do właściciela (jeśli inny niż komentujący)
+      if (selectedCase.owner_id && selectedCase.owner_id !== currentUser.id) {
+        const owner = users.find(u => u.id === selectedCase.owner_id)
+        sendNotification('case_comment', {
+          caseNumber: selectedCase.case_number,
+          caseTitle: selectedCase.title,
+          commentAuthor: `${currentUser.first_name} ${currentUser.last_name}`,
+          ownerId: selectedCase.owner_id,
+          ownerEmail: owner?.email,
+        })
+      }
+    }
     setIsSendingComment(false)
   }
 

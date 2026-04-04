@@ -6,6 +6,7 @@ import { FileUpload, sanitizeFileName } from '../../components/FileUpload'
 import type { UploadedFile } from '../../components/FileUpload'
 import { Briefcase, Send, CheckCircle, AlertCircle, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Phone, Search, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { sendNotification } from '../../lib/notify'
 
 // Komponent Sukcesu
 const SuccessView = ({ generatedNumber, resetForm }: { generatedNumber: string; resetForm: () => void }) => (
@@ -147,6 +148,13 @@ export default function PublicIntakePage() {
     if (!error) {
       setGeneratedNumber(newCaseNumber)
       setIsSuccess(true)
+      // Powiadomienie do adminów + potwierdzenie do wnioskodawcy
+      sendNotification('external_submission', {
+        caseNumber: newCaseNumber,
+        caseTitle: formData.title,
+        caseType: formData.case_type,
+        contactEmail: formData.contact_email,
+      })
     } else {
       setErrorMsg('Wystąpił problem z połączeniem. Spróbuj ponownie później.')
       console.error(error)

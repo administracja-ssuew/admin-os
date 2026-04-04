@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import { Calendar, Plus, Loader2, X, CheckCircle2, Users, FileText, Clock, ArrowRight, Lock, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { sendNotification } from '../../lib/notify'
 
 export default function MeetingsPage() {
   const [meetings, setMeetings] = useState<any[]>([])
@@ -58,6 +59,17 @@ export default function MeetingsPage() {
       setIsModalOpen(false)
       fetchData()
       toast.success('Spotkanie zaplanowane!', { id: toastId })
+      // Powiadomienie do wszystkich aktywnych użytkowników
+      if (usersList.length > 0) {
+        sendNotification('new_meeting', {
+          meetingTitle: formData.title,
+          date: formData.meeting_date,
+          time: formData.meeting_time || null,
+          organizerName: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Zarząd',
+          attendeeIds: usersList.map((u: any) => u.id),
+          attendeeEmails: usersList.map((u: any) => u.email).filter(Boolean),
+        })
+      }
     } else toast.error('Błąd: ' + error.message, { id: toastId })
     setIsSubmitting(false)
   }
