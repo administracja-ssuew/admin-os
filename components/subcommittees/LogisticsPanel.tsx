@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import ConfirmDialog from '../ConfirmDialog'
+import AssetInventory from './AssetInventory'
 import toast from 'react-hot-toast'
 import {
   Plus, Trash2, Loader2, FileText, Printer, BarChart3,
@@ -35,6 +36,7 @@ export interface LogisticsPanelProps {
   loans: EquipmentLoan[]
   reports: LogisticsReport[]
   members: DeptMember[]
+  lowStockAssets: Asset[]
   currentUser: AppUser | null
   isAdmin: boolean
   onRefetch: () => Promise<void>
@@ -46,6 +48,7 @@ export function LogisticsPanel({
   loans,
   reports,
   members,
+  lowStockAssets,
   currentUser,
   isAdmin,
   onRefetch,
@@ -70,6 +73,9 @@ export function LogisticsPanel({
     agreement_number: '',
     item_category: 'Namiot Plenerowy',
     borrower_name: '',
+    borrower_phone: '',
+    borrower_org: '',
+    loan_source: '',
     issue_date: '',
     return_date: '',
     status: 'Wypożyczone',
@@ -125,18 +131,34 @@ export function LogisticsPanel({
     }])
     toast.success('Umowa wpisana!')
     setIsLoanModalOpen(false)
-    setLoanForm({ agreement_number: '', item_category: 'Namiot Plenerowy', borrower_name: '', issue_date: '', return_date: '', status: 'Wypożyczone', notes: '' })
+    setLoanForm({ agreement_number: '', item_category: 'Namiot Plenerowy', borrower_name: '', borrower_phone: '', borrower_org: '', loan_source: '', issue_date: '', return_date: '', status: 'Wypożyczone', notes: '' })
     await onRefetch()
     setIsSubmittingLoan(false)
   }
 
   const toggleLoanStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Wypożyczone' ? 'Zwrócone' : 'Wypożyczone'
-    await supabase.from('equipment_loans').update({
+    const toastId = toast.loading('Aktualizowanie statusu...')
+    const { error } = await supabase.from('equipment_loans').update({
       status: newStatus,
       return_date: newStatus === 'Zwrócone' ? new Date().toISOString().split('T')[0] : null,
     }).eq('id', id)
-    await onRefetch()
+    if (!error) {
+      if (currentUser) {
+        await logAudit({
+          userId: currentUser.id,
+          action: 'UPDATE_STATUS',
+          entityType: 'equipment_loan',
+          entityId: id,
+          oldValue: { status: currentStatus },
+          newValue: { status: newStatus },
+        })
+      }
+      toast.success('Status zaktualizowany', { id: toastId })
+      await onRefetch()
+    } else {
+      toast.error('Błąd aktualizacji statusu', { id: toastId })
+    }
   }
 
   const deleteLoan = async (id: string) => {
@@ -200,6 +222,10 @@ export function LogisticsPanel({
   const filteredLoans = loans.filter(l =>
     loanStatusFilter === 'all' || l.status === loanStatusFilter
   )
+
+  const today = new Date().toISOString().split('T')[0]
+  const isOverdue = (loan: EquipmentLoan) =>
+    loan.status === 'Wypożyczone' && loan.return_date !== null && loan.return_date < today
 
   const loanedCount = loans.filter(l => l.status === 'Wypożyczone').length
   const maintenanceCount = assets.filter(a => a.status === 'maintenance').length
@@ -352,11 +378,20 @@ export function LogisticsPanel({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm">
                 {filteredLoans.map(loan => (
-                  <tr key={loan.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <tr key={loan.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 ${isOverdue(loan) ? 'bg-red-50 dark:bg-red-900/10' : ''}`}>
                     <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{loan.agreement_number}</td>
                     <td className="px-4 py-3">
                       <div className="font-bold text-slate-900 dark:text-white">{loan.item_category}</div>
-                      {loan.borrower_name && <div className="text-[10px] text-slate-500">{loan.borrower_name}</div>}
+                      {loan.borrower_name && (
+                        <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                          {loan.borrower_name}
+                          {isOverdue(loan) && (
+                            <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                              Przeterminowane
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-slate-600 dark:text-slate-400">
                       {loan.issue_date}
@@ -416,6 +451,9 @@ export function LogisticsPanel({
           </div>
         </div>
       </div>
+
+      {/* Inwentarz materiałów biurowych */}
+      <AssetInventory assets={assets} lowStockAssets={lowStockAssets} />
 
       {/* Raporty logistyczne */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted flex flex-col">
@@ -616,6 +654,38 @@ export function LogisticsPanel({
                   value={loanForm.borrower_name}
                   onChange={e => setLoanForm({ ...loanForm, borrower_name: e.target.value })}
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Telefon pożyczkobiorcy</label>
+                <input
+                  type="tel"
+                  placeholder="Telefon pożyczkobiorcy"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
+                  value={loanForm.borrower_phone}
+                  onChange={e => setLoanForm(f => ({ ...f, borrower_phone: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Organizacja</label>
+                <input
+                  type="text"
+                  placeholder="Organizacja"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
+                  value={loanForm.borrower_org}
+                  onChange={e => setLoanForm(f => ({ ...f, borrower_org: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Źródło wypożyczenia</label>
+                <select
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
+                  value={loanForm.loan_source}
+                  onChange={e => setLoanForm(f => ({ ...f, loan_source: e.target.value }))}
+                >
+                  <option value="">Źródło wypożyczenia</option>
+                  <option value="wewnętrzne">Wewnętrzne</option>
+                  <option value="zewnętrzne">Zewnętrzne</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
