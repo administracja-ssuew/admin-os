@@ -79,7 +79,7 @@ export default function DashboardPage() {
       .gte('created_at', startOfWeek.toISOString())
 
     // Statystyki Spotkań
-    const { count: upcomingMeetings } = await supabase.from('meetings').select('*', { count: 'exact', head: true }).gte('meeting_date', todayStr)
+    const { count: upcomingMeetings } = await supabase.from('meeting_protocols').select('*', { count: 'exact', head: true }).gte('date', todayStr)
 
     // Budujemy dane wykresu: ile spraw wpłynęło każdego dnia
     const dayLabels = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
@@ -230,15 +230,17 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {urgentTasks.length > 0 ? urgentTasks.map(task => {
                     const isOverdue = task.deadline && new Date(task.deadline) < new Date()
+                    // Supabase may return join as array or object — normalize
+                    const assignee = Array.isArray(task.users) ? task.users[0] : task.users
                     return (
                       <Link key={task.id} href="/tasks" className="block p-4 rounded-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
                         <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-blue-500 transition-colors mb-2">{task.title}</h3>
                         <div className="flex justify-between items-center text-xs font-bold">
                           <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[9px] shrink-0">
-                              {task.users ? `${task.users.first_name.charAt(0)}${task.users.last_name.charAt(0)}` : '?'}
+                              {assignee ? `${assignee.first_name?.charAt(0) ?? ''}${assignee.last_name?.charAt(0) ?? ''}` : '?'}
                             </div>
-                            {task.users ? task.users.first_name : 'Brak'}
+                            {assignee ? assignee.first_name : 'Brak'}
                           </span>
                           <span className={`flex items-center gap-1 px-2 py-1 rounded-md ${isOverdue ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                             <Clock size={12}/> {task.deadline ? task.deadline.substring(5) : 'Brak'}

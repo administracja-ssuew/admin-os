@@ -53,39 +53,39 @@ function SuccessView({ generatedNumber, resetForm }: { generatedNumber: string; 
 
   return (
     <div className="text-center">
-      <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md border border-green-200">
+      <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md border border-green-200 dark:border-green-800">
         <CheckCircle size={40} />
       </div>
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Wniosek przyjęty!</h2>
-      <p className="text-slate-500 mb-6 text-sm leading-relaxed">
+      <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-2">Wniosek przyjęty!</h2>
+      <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm leading-relaxed">
         Twój wniosek został przesłany do Komisji. Zachowaj numer sprawy — będzie potrzebny do sprawdzenia statusu.
       </p>
 
       {/* Numer sprawy z przyciskiem kopiuj */}
-      <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl mb-6 shadow-inner">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-5 rounded-2xl mb-6 shadow-inner">
         <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Twój numer sprawy</p>
         <div className="flex items-center justify-center gap-3">
-          <p className="text-2xl font-mono font-extrabold text-blue-600 tracking-wider">{generatedNumber}</p>
+          <p className="text-2xl font-mono font-extrabold text-blue-600 dark:text-blue-400 tracking-wider">{generatedNumber}</p>
           <button
             onClick={copyNumber}
             title="Kopiuj numer"
-            className={`p-2 rounded-lg transition-all ${copied ? 'bg-green-100 text-green-600' : 'bg-white border border-blue-200 text-blue-400 hover:text-blue-600 hover:border-blue-400'}`}
+            className={`p-2 rounded-lg transition-all ${copied ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-white dark:bg-slate-700 border border-blue-200 dark:border-slate-600 text-blue-400 hover:text-blue-600 hover:border-blue-400'}`}
           >
             {copied ? <Check size={16} /> : <Copy size={16} />}
           </button>
         </div>
-        {copied && <p className="text-xs text-green-600 font-bold mt-1">Skopiowano!</p>}
+        {copied && <p className="text-xs text-green-600 dark:text-green-400 font-bold mt-1">Skopiowano!</p>}
       </div>
 
       <Link
         href="/wniosek/status"
-        className="flex items-center justify-center gap-2 w-full py-3 mb-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-sm transition-colors border border-blue-200"
+        className="flex items-center justify-center gap-2 w-full py-3 mb-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold rounded-xl text-sm transition-colors border border-blue-200 dark:border-blue-800"
       >
         <Search size={16} /> Sprawdź status wniosku
       </Link>
       <button
         onClick={resetForm}
-        className="text-sm font-bold text-slate-400 hover:text-slate-700 transition-colors"
+        className="text-sm font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
       >
         Wyślij kolejny wniosek
       </button>
@@ -123,13 +123,13 @@ export default function PublicIntakePage() {
     setCalendarLoading(true)
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-    const { data: meetings } = await supabase
-      .from('meetings')
-      .select('id, title, meeting_date, meeting_time')
-      .gte('meeting_date', toDateStr(startOfMonth))
-      .lte('meeting_date', toDateStr(endOfMonth))
-    if (meetings) {
-      setEvents(meetings.map(m => ({ id: m.id, title: m.title, date: m.meeting_date, time: m.meeting_time })))
+    const { data: protocols } = await supabase
+      .from('meeting_protocols')
+      .select('id, title, date')
+      .gte('date', toDateStr(startOfMonth))
+      .lte('date', toDateStr(endOfMonth))
+    if (protocols) {
+      setEvents(protocols.map(m => ({ id: m.id, title: m.title, date: m.date })))
     }
     setCalendarLoading(false)
   }, [currentDate])
@@ -268,35 +268,35 @@ export default function PublicIntakePage() {
       <div className="flex-1 w-full max-w-6xl flex gap-8 overflow-hidden relative z-10">
 
         {/* ── LEWA: KALENDARZ ────────────────────────────────────────────────── */}
-        <div className="flex-[2] bg-white rounded-[28px] shadow-2xl border border-gray-100 flex flex-col overflow-hidden softly-lifted">
+        <div className="flex-[2] bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden softly-lifted">
 
           {/* Nagłówek miesiąca */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-            <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
+            <button onClick={prevMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-600 dark:text-slate-300">
               <ChevronLeft size={18} />
             </button>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-gray-800 tracking-wide text-sm">
+              <span className="font-extrabold text-gray-800 dark:text-white tracking-wide text-sm">
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </span>
               {calendarLoading && <Loader2 size={14} className="animate-spin text-slate-400" />}
             </div>
-            <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600">
+            <button onClick={nextMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-600 dark:text-slate-300">
               <ChevronRight size={18} />
             </button>
           </div>
 
           {/* Nagłówki dni */}
-          <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/80 shrink-0">
+          <div className="grid grid-cols-7 border-b border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-900/50 shrink-0">
             {dayNames.map(day => (
-              <div key={day} className="py-3 text-center text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{day}</div>
+              <div key={day} className="py-3 text-center text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest">{day}</div>
             ))}
           </div>
 
           {/* Siatka dni */}
           <div className="flex-1 grid grid-cols-7 auto-rows-fr">
             {emptyCellsArray.map(cell => (
-              <div key={`empty-${cell}`} className="border-r border-b border-gray-50 bg-gray-50/30" />
+              <div key={`empty-${cell}`} className="border-r border-b border-gray-50 dark:border-slate-700/50 bg-gray-50/30 dark:bg-slate-900/20" />
             ))}
             {daysArray.map(day => {
               const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -307,18 +307,18 @@ export default function PublicIntakePage() {
                 <div
                   key={day}
                   onClick={() => setSelectedDate(dateStr)}
-                  className={`border-r border-b border-gray-50 p-2 cursor-pointer transition-all group relative min-h-[52px] ${
-                    isSelected ? 'bg-blue-50/70 ring-inset ring-2 ring-blue-400' : 'hover:bg-gray-50'
+                  className={`border-r border-b border-gray-50 dark:border-slate-700/50 p-2 cursor-pointer transition-all group relative min-h-[52px] ${
+                    isSelected ? 'bg-blue-50/70 dark:bg-blue-900/30 ring-inset ring-2 ring-blue-400' : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
                   }`}
                 >
                   <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                    isToday ? 'bg-blue-600 text-white shadow-md' : isSelected ? 'text-blue-700 font-extrabold' : 'text-gray-700 group-hover:text-blue-600'
+                    isToday ? 'bg-blue-600 text-white shadow-md' : isSelected ? 'text-blue-700 dark:text-blue-400 font-extrabold' : 'text-gray-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                   }`}>{day}</span>
                   <div className="absolute bottom-1.5 left-2 flex flex-wrap gap-0.5">
                     {dayEvents.slice(0, 3).map((_, i) => (
                       <div key={i} className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                     ))}
-                    {dayEvents.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />}
+                    {dayEvents.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-slate-500" />}
                   </div>
                 </div>
               )
@@ -326,24 +326,23 @@ export default function PublicIntakePage() {
           </div>
 
           {/* Panel wybranego dnia */}
-          <div className="border-t border-gray-100 bg-gray-50/80 shrink-0 px-5 py-3 min-h-[64px]">
+          <div className="border-t border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-900/50 shrink-0 px-5 py-3 min-h-[64px]">
             {selectedDayEvents.length > 0 ? (
               <div>
-                <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <p className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <CalendarDays size={11} /> Posiedzenia — {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}
                 </p>
                 <div className="space-y-1">
                   {selectedDayEvents.map(ev => (
                     <div key={ev.id} className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
-                      <span className="text-xs font-bold text-gray-700 truncate">{ev.title}</span>
-                      {ev.time && <span className="text-[10px] text-gray-400 ml-auto shrink-0">{ev.time.slice(0, 5)}</span>}
+                      <span className="text-xs font-bold text-gray-700 dark:text-slate-200 truncate">{ev.title}</span>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-gray-400 flex items-center gap-1.5">
+              <p className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-orange-400/60" />
                 Brak posiedzeń w tym dniu
               </p>
@@ -351,12 +350,12 @@ export default function PublicIntakePage() {
           </div>
 
           {/* Legenda */}
-          <div className="px-5 py-2.5 border-t border-gray-100 bg-white flex items-center gap-4 shrink-0">
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+          <div className="px-5 py-2.5 border-t border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">
               <div className="w-2 h-2 rounded-full bg-orange-500" />
               Posiedzenie komisji
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">
               <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-white text-[8px] font-extrabold">D</span>
               </div>
@@ -366,7 +365,7 @@ export default function PublicIntakePage() {
         </div>
 
         {/* ── PRAWA: FORMULARZ ──────────────────────────────────────────────── */}
-        <div className="flex-1 bg-white rounded-[28px] shadow-2xl border border-gray-100 flex flex-col overflow-hidden max-w-sm softly-lifted">
+        <div className="flex-1 bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden max-w-sm softly-lifted">
           <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col h-full">
 
             {isSuccess ? (
@@ -403,7 +402,7 @@ export default function PublicIntakePage() {
                       <input
                         type="email"
                         required
-                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 text-sm ${fieldErrors.contact_email ? 'border-red-400 bg-red-50/30' : touched.contact_email && !fieldErrors.contact_email ? 'border-green-400' : 'border-slate-200'}`}
+                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-xl focus:bg-white dark:focus:bg-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 dark:text-white placeholder-slate-400 text-sm ${fieldErrors.contact_email ? 'border-red-400 bg-red-50/30' : touched.contact_email && !fieldErrors.contact_email ? 'border-green-400' : 'border-slate-200 dark:border-slate-600'}`}
                         placeholder="kontakt@domena.pl"
                         value={formData.contact_email}
                         onChange={e => handleChange('contact_email', e.target.value)}
@@ -421,7 +420,7 @@ export default function PublicIntakePage() {
                         <Phone className="absolute left-4 top-3.5 text-slate-400" size={14} />
                         <input
                           type="tel"
-                          className={`w-full pl-9 pr-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 text-sm ${fieldErrors.contact_phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
+                          className={`w-full pl-9 pr-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-xl focus:bg-white dark:focus:bg-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 dark:text-white placeholder-slate-400 text-sm ${fieldErrors.contact_phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200 dark:border-slate-600'}`}
                           placeholder="+48 123 456 789"
                           value={formData.contact_phone}
                           onChange={e => handleChange('contact_phone', e.target.value)}
@@ -437,7 +436,7 @@ export default function PublicIntakePage() {
                         Kategoria sprawy
                       </label>
                       <select
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 text-sm"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:bg-white dark:focus:bg-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 dark:text-white text-sm"
                         value={formData.case_type}
                         onChange={e => setFormData({ ...formData, case_type: e.target.value })}
                       >
@@ -459,7 +458,7 @@ export default function PublicIntakePage() {
                       <input
                         type="text"
                         required
-                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 text-sm ${fieldErrors.title ? 'border-red-400 bg-red-50/30' : touched.title && !fieldErrors.title ? 'border-green-400' : 'border-slate-200'}`}
+                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-xl focus:bg-white dark:focus:bg-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 dark:text-white placeholder-slate-400 text-sm ${fieldErrors.title ? 'border-red-400 bg-red-50/30' : touched.title && !fieldErrors.title ? 'border-green-400' : 'border-slate-200 dark:border-slate-600'}`}
                         placeholder="Czego dotyczy Twoja sprawa?"
                         value={formData.title}
                         onChange={e => handleChange('title', e.target.value)}
@@ -481,8 +480,8 @@ export default function PublicIntakePage() {
                       </label>
                       <textarea
                         required
-                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none text-slate-900 text-sm custom-scrollbar ${
-                          fieldErrors.description ? 'border-red-400 bg-red-50/30' : touched.description && !fieldErrors.description ? 'border-green-400' : 'border-slate-200'
+                        className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border rounded-xl focus:bg-white dark:focus:bg-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none text-slate-900 dark:text-white placeholder-slate-400 text-sm custom-scrollbar ${
+                          fieldErrors.description ? 'border-red-400 bg-red-50/30' : touched.description && !fieldErrors.description ? 'border-green-400' : 'border-slate-200 dark:border-slate-600'
                         }`}
                         style={{ height: '140px' }}
                         placeholder="Opisz dokładnie swoją sprawę, podaj kontekst i oczekiwane działanie..."
@@ -494,7 +493,7 @@ export default function PublicIntakePage() {
 
                       {/* Pasek postępu 0→20 znaków */}
                       <div className="mt-1.5 flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all duration-300 ${descGood ? 'bg-green-500' : 'bg-blue-400'}`}
                             style={{ width: `${descProgress}%` }}

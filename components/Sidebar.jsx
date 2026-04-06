@@ -87,11 +87,18 @@ export default function Sidebar() {
             <Link href="/brainstorm" className={getLinkStyle('/brainstorm') + ' mt-2'}>
               <span className="flex items-center gap-2"><Lightbulb size={16} />Burza Mózgów</span>
             </Link>
-            <Link href="/executive" className={isActive('/executive') 
-              ? 'block py-3 px-4 rounded-lg bg-slate-700 text-white font-bold shadow-md transition-all border border-slate-600 mt-2' 
+            <Link href="/executive" className={isActive('/executive')
+              ? 'block py-3 px-4 rounded-lg bg-slate-700 text-white font-bold shadow-md transition-all border border-slate-600 mt-2'
               : 'block py-3 px-4 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium mt-2'}>
               🛡️ Panel Kierownictwa
             </Link>
+            {userRole === 'superadmin' && (
+              <Link href="/scores" className={isActive('/scores')
+                ? 'block py-3 px-4 rounded-lg bg-slate-700 text-white font-bold shadow-md transition-all border border-slate-600 mt-2'
+                : 'block py-3 px-4 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium mt-2'}>
+                🏆 System Motywacyjny
+              </Link>
+            )}
           </div>
         )}
       </nav>

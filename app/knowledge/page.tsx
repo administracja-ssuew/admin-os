@@ -357,9 +357,29 @@ export default function KnowledgePage() {
 
                   <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
                     {activeArticle.content ? (
-                      <div className="prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed">
-                        <ReactMarkdown>{activeArticle.content}</ReactMarkdown>
-                      </div>
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ children }) => <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-4 mt-6 pb-2 border-b border-slate-200 dark:border-slate-700">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-3 mt-5">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 mb-2 mt-4">{children}</h3>,
+                          p: ({ children }) => <p className="text-sm text-slate-700 dark:text-slate-300 mb-3 leading-relaxed">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-sm text-slate-700 dark:text-slate-300">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-sm text-slate-700 dark:text-slate-300">{children}</ol>,
+                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                          strong: ({ children }) => <strong className="font-bold text-slate-900 dark:text-white">{children}</strong>,
+                          em: ({ children }) => <em className="italic text-slate-600 dark:text-slate-400">{children}</em>,
+                          code: ({ children }) => <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded text-xs font-mono">{children}</code>,
+                          pre: ({ children }) => <pre className="bg-slate-100 dark:bg-slate-900 rounded-xl p-4 mb-3 overflow-x-auto text-xs font-mono text-slate-800 dark:text-slate-200">{children}</pre>,
+                          blockquote: ({ children }) => <blockquote className="pl-4 border-l-4 border-blue-300 dark:border-blue-700 italic text-slate-600 dark:text-slate-400 my-3">{children}</blockquote>,
+                          hr: () => <hr className="border-slate-200 dark:border-slate-700 my-5" />,
+                          a: ({ href, children }) => <a href={href} className="text-blue-600 dark:text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                          table: ({ children }) => <div className="overflow-x-auto mb-4"><table className="w-full text-sm border-collapse">{children}</table></div>,
+                          th: ({ children }) => <th className="text-left px-3 py-2 bg-slate-100 dark:bg-slate-700 font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">{children}</th>,
+                          td: ({ children }) => <td className="px-3 py-2 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">{children}</td>,
+                        }}
+                      >
+                        {activeArticle.content}
+                      </ReactMarkdown>
                     ) : (
                       <span className="italic text-slate-400 dark:text-slate-500 text-sm">Ten artykuł nie posiada jeszcze wewnętrznej treści.</span>
                     )}
