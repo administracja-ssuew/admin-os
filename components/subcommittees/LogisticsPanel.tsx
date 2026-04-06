@@ -446,7 +446,13 @@ export function LogisticsPanel({
             </h2>
           </div>
           <div className="flex-1 p-5 flex items-end justify-between gap-2 overflow-x-auto custom-scrollbar">
-            {timelineData.map(([monthYear, count]) => (
+            {timelineData.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+                <BarChart3 size={32} className="text-slate-700" />
+                <p className="text-xs text-slate-600 font-medium">Brak danych do wyświetlenia</p>
+                <p className="text-[10px] text-slate-700">Dodaj pierwsze wypożyczenie</p>
+              </div>
+            ) : timelineData.map(([monthYear, count]) => (
               <div key={monthYear} className="flex flex-col items-center gap-2 group flex-1 min-w-[30px]">
                 <div className="text-[10px] font-bold text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">{count}</div>
                 <div className="w-full max-w-[40px] bg-slate-800 rounded-t-lg relative flex flex-col justify-end h-full">
@@ -463,7 +469,7 @@ export function LogisticsPanel({
       </div>
 
       {/* Inwentarz materiałów biurowych */}
-      <AssetInventory assets={assets} lowStockAssets={lowStockAssets} />
+      <AssetInventory assets={assets} lowStockAssets={lowStockAssets} onRefetch={onRefetch} />
 
       {/* Raporty logistyczne */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden softly-lifted flex flex-col">
@@ -641,18 +647,22 @@ export function LogisticsPanel({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Kategoria sprzętu *</label>
-                  <select
+                  <input
+                    type="text"
                     required
+                    list="equipment-categories"
+                    placeholder="Wpisz lub wybierz..."
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                     value={loanForm.item_category}
                     onChange={e => setLoanForm({ ...loanForm, item_category: e.target.value })}
-                  >
-                    <option value="Namiot Plenerowy">Namiot Plenerowy</option>
-                    <option value="Sprzęt Audio">Sprzęt Audio</option>
-                    <option value="Projektor">Projektor</option>
-                    <option value="Meble">Meble</option>
-                    <option value="Inne">Inne</option>
-                  </select>
+                  />
+                  <datalist id="equipment-categories">
+                    <option value="Namiot Plenerowy" />
+                    <option value="Sprzęt Audio" />
+                    <option value="Projektor" />
+                    <option value="Meble" />
+                    <option value="Inne" />
+                  </datalist>
                 </div>
               </div>
               <div>
@@ -670,7 +680,7 @@ export function LogisticsPanel({
                 <input
                   type="tel"
                   placeholder="Telefon pożyczkobiorcy"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                   value={loanForm.borrower_phone}
                   onChange={e => setLoanForm(f => ({ ...f, borrower_phone: e.target.value }))}
                 />
@@ -680,7 +690,7 @@ export function LogisticsPanel({
                 <input
                   type="text"
                   placeholder="Organizacja"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                   value={loanForm.borrower_org}
                   onChange={e => setLoanForm(f => ({ ...f, borrower_org: e.target.value }))}
                 />
@@ -688,7 +698,7 @@ export function LogisticsPanel({
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Źródło wypożyczenia</label>
                 <select
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                   value={loanForm.loan_source}
                   onChange={e => setLoanForm(f => ({ ...f, loan_source: e.target.value }))}
                 >
