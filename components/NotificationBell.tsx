@@ -14,13 +14,15 @@ export default function NotificationBell() {
   const unreadCount = notifications.filter(n => !n.is_read).length
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user?.id) return
       setUserId(session.user.id)
       fetchNotifications(session.user.id)
 
-      const channel = supabase
+      channel = supabase
         .channel('notifications-realtime')
         .on('postgres_changes', {
           event: 'INSERT',
@@ -31,10 +33,13 @@ export default function NotificationBell() {
           fetchNotifications(session.user.id)
         })
         .subscribe()
-
-      return () => { supabase.removeChannel(channel) }
     }
+
     init()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [])
 
   // Zamknij panel po kliknięciu poza nim
