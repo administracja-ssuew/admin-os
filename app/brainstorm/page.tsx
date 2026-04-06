@@ -60,7 +60,7 @@ function MarkdownToolbar({
   value,
   onChange,
 }: {
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
   value: string
   onChange: (val: string) => void
 }) {
