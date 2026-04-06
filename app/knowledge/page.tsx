@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import ReactMarkdown from 'react-markdown'
+import SkeletonLoader from '../../components/SkeletonLoader'
 import {
   BookOpen, FileText, ExternalLink, HardHat, AlertTriangle, Shield,
   Search, Lock, ChevronRight, Save, Plus, Trash2, Download, Upload,
@@ -211,7 +212,8 @@ export default function KnowledgePage() {
               />
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors softly-lifted p-4 space-y-6">
-              {Object.keys(groupedItems).map(category => (
+              {loading && <SkeletonLoader variant="card" count={3} />}
+              {!loading && Object.keys(groupedItems).map(category => (
                 <div key={category}>
                   <h3 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                     {category === 'W Budowie' ? <HardHat size={14} className="text-orange-500" /> : <Shield size={14} />} {category}

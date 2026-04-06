@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import ConfirmDialog from '../ConfirmDialog'
 import { EligibilityChecklist } from './grants/EligibilityChecklist'
+import SkeletonLoader from '../SkeletonLoader'
+import EmptyState from '../EmptyState'
 import toast from 'react-hot-toast'
 import {
   Plus, Loader2, Trash2, X, Search, PiggyBank, ExternalLink,
@@ -77,6 +79,7 @@ export interface GrantsPanelProps {
   members: DeptMember[]
   currentUser: AppUser | null
   isAdmin: boolean
+  loading?: boolean
   onRefetch: () => Promise<void>
 }
 
@@ -86,6 +89,7 @@ export function GrantsPanel({
   members,
   currentUser,
   isAdmin,
+  loading = false,
   onRefetch,
 }: GrantsPanelProps) {
   // Stany: modal dodawania
@@ -341,12 +345,11 @@ export function GrantsPanel({
                   </td>
                 </tr>
               ))}
-              {filteredGrants.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
-                    Brak wyników dla wybranych filtrów
-                  </td>
-                </tr>
+              {loading && (
+                <tr><td colSpan={7} className="p-4"><SkeletonLoader variant="table-row" count={3} /></td></tr>
+              )}
+              {!loading && filteredGrants.length === 0 && (
+                <tr><td colSpan={7}><EmptyState title="Brak grantów" description="Dodaj pierwszy grant lub patronat do radaru" actionLabel="Nowa pozycja" onAction={() => setIsGrantModalOpen(true)} /></td></tr>
               )}
             </tbody>
           </table>

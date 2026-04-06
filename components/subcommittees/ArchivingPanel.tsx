@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import { useCases } from '../../hooks/useCases'
 import ConfirmDialog from '../ConfirmDialog'
+import SkeletonLoader from '../SkeletonLoader'
+import EmptyState from '../EmptyState'
 import toast from 'react-hot-toast'
 import {
   Plus, Loader2, FileText, FolderClosed, BookOpen, Send,
@@ -27,6 +29,7 @@ export interface ArchivingPanelProps {
   members: DeptMember[]
   currentUser: AppUser | null
   isAdmin: boolean
+  loading?: boolean
   onRefetch: () => Promise<void>
 }
 
@@ -37,6 +40,7 @@ export function ArchivingPanel({
   members,
   currentUser,
   isAdmin,
+  loading = false,
   onRefetch,
 }: ArchivingPanelProps) {
   // Stan: zakładki
@@ -253,14 +257,9 @@ export function ArchivingPanel({
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Sprawy działu</h2>
           {casesLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-slate-400" size={24} />
-            </div>
+            <SkeletonLoader variant="kanban-column" count={3} />
           ) : deptCases.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-              <p className="font-bold text-lg mb-1">Brak spraw</p>
-              <p className="text-sm">Dział nie ma przypisanych spraw w systemie.</p>
-            </div>
+            <EmptyState title="Brak spraw" description="Dział nie ma przypisanych spraw w systemie." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {caseColumns.map(col => {
@@ -452,9 +451,12 @@ export function ArchivingPanel({
                 </div>
               </div>
             ))}
-            {archiveFolders.length === 0 && (
-              <div className="col-span-full p-6 text-center text-xs text-slate-400 dark:text-slate-500">
-                Brak otwartych teczek archiwalnych.
+            {loading && (
+              <div className="col-span-full p-4"><SkeletonLoader variant="card" count={3} /></div>
+            )}
+            {!loading && archiveFolders.length === 0 && (
+              <div className="col-span-full">
+                <EmptyState title="Brak teczek archiwalnych" description="Utwórz pierwszą teczkę dla sprawy lub raportu" actionLabel="Nowa teczka" onAction={() => setIsArchiveModalOpen(true)} />
               </div>
             )}
           </div>

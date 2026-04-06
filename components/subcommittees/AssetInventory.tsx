@@ -1,5 +1,6 @@
 'use client'
 
+import EmptyState from '../EmptyState'
 import type { Asset } from '../../types'
 
 interface AssetInventoryProps {
@@ -23,9 +24,7 @@ export default function AssetInventory({ assets, lowStockAssets }: AssetInventor
         )}
       </div>
       {officeAssets.length === 0 ? (
-        <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
-          Brak materiałów biurowych do wyświetlenia
-        </p>
+        <EmptyState title="Brak materiałów biurowych" description="Dodaj zasoby z oznaczonym minimalnym poziomem zapasów" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import ConfirmDialog from '../ConfirmDialog'
 import AssetInventory from './AssetInventory'
+import SkeletonLoader from '../SkeletonLoader'
+import EmptyState from '../EmptyState'
 import toast from 'react-hot-toast'
 import {
   Plus, Trash2, Loader2, FileText, Printer, BarChart3,
@@ -39,6 +41,7 @@ export interface LogisticsPanelProps {
   lowStockAssets: Asset[]
   currentUser: AppUser | null
   isAdmin: boolean
+  loading?: boolean
   onRefetch: () => Promise<void>
 }
 
@@ -51,6 +54,7 @@ export function LogisticsPanel({
   lowStockAssets,
   currentUser,
   isAdmin,
+  loading = false,
   onRefetch,
 }: LogisticsPanelProps) {
   // Stany: assets
@@ -377,6 +381,12 @@ export function LogisticsPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm">
+                {loading && (
+                  <tr><td colSpan={5} className="p-4"><SkeletonLoader variant="table-row" count={3} /></td></tr>
+                )}
+                {!loading && filteredLoans.length === 0 && (
+                  <tr><td colSpan={5}><EmptyState title="Brak wypożyczeń" description="Dodaj pierwszą umowę użyczenia sprzętu" actionLabel="Dodaj wypożyczenie" onAction={() => setIsLoanModalOpen(true)} /></td></tr>
+                )}
                 {filteredLoans.map(loan => (
                   <tr key={loan.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 ${isOverdue(loan) ? 'bg-red-50 dark:bg-red-900/10' : ''}`}>
                     <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{loan.agreement_number}</td>
@@ -468,10 +478,10 @@ export function LogisticsPanel({
             <Plus size={16} /> Złóż Raport
           </button>
         </div>
-        {reports.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 dark:text-slate-500 text-sm font-medium">
-            Brak złożonych raportów w tej podkomisji.
-          </div>
+        {loading ? (
+          <div className="p-4"><SkeletonLoader variant="card" count={2} /></div>
+        ) : reports.length === 0 ? (
+          <EmptyState title="Brak raportów" description="Złóż pierwszy raport logistyczny" actionLabel="Złóż raport" onAction={() => setIsReportModalOpen(true)} />
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {reports.map(report => {
