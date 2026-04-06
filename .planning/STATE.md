@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 01 — security-hardening-stability
-current_plan: 06 (01-06 complete — Phase 01 done)
-status: in_progress
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-04-06T08:32:40.037Z"
+current_phase: 02
+current_plan: 2
+status: Executing Phase 02
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-04-06T10:22:47.608Z"
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 11
+  completed_plans: 7
 ---
 
 # Project State
 
 **Last updated:** 2026-04-06
-**Current phase:** 01 — security-hardening-stability
-**Current plan:** 06 (Phase 01 complete)
+**Current phase:** 02
+**Current plan:** 1
 
 ## Project Reference
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Jeden centralny panel, w którym każdy członek samorządu wie co ma zrobić, a każdy zasób — umowa, wniosek, grant — jest zawsze pod ręką i śledzony.
 **Milestone:** v1.0 — Release Ready
-**Current focus:** Phase 01 — security-hardening-stability
+**Current focus:** Phase 02 — my-department-refactor
 
 ## Phase Status
 
@@ -72,6 +72,8 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - [Phase 01]: STAB-01: Postgres sequence + BEFORE INSERT trigger used for atomic server-side case_number generation — eliminates client-side race condition
 - [Phase 01]: STAB-02: UPSERT with ignoreDuplicates: true used for department_notes — preserves existing note content and eliminates select-then-insert race condition
 - [Phase 01]: STAB-03: NotificationBell channel hoisted to useEffect outer scope — cleanup returned directly from useEffect so React calls removeChannel on unmount
+- [Phase 02]: dept_type column is nullable — generic departments (no subcommittee) are allowed to have NULL
+- [Phase 02]: Backfill heuristics in migration match page.tsx string fragments exactly (dotacj, logistyk, logitech, archiwizacj, bieżąc) to ensure consistent routing behavior
 
 ## Performance Metrics
 
@@ -82,8 +84,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | 01 | 03 | 3min | 1 | 2 |
 | 01 | 04 | 2min | 1 | 1 |
 | 01 | 06 | 15min | 5 | 5 |
+| Phase 02 P01 | 2min | 2 tasks | 2 files |
 
 ## Last session
 
-**Stopped at:** Completed 01-06-PLAN.md
+**Stopped at:** Completed 02-01-PLAN.md
 **Timestamp:** 2026-04-06T01:53:00Z
