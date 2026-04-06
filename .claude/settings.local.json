@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls admin-os/.env*)",
+      "Bash(ls admin-os/.planning/phases/01-security-hardening-stability/01-*-PLAN.md)",
+      "Bash(grep -c \"requirements:\" admin-os/.planning/phases/01-security-hardening-stability/01-*-PLAN.md)",
+      "Bash(grep \"^wave:\\\\|^depends_on:\\\\|^requirements:\" admin-os/.planning/phases/01-security-hardening-stability/01-*-PLAN.md)",
+      "Bash(grep -h \"SEC-\\\\|STAB-\" admin-os/.planning/phases/01-security-hardening-stability/01-*-PLAN.md)",
+      "Bash(grep -v \"^#\\\\|<!--\\\\|--\\\\|//\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; print\\('\\\\n'.join\\(sorted\\(deps.keys\\(\\)\\)\\)\\)\")",
+      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs init phase-op 2)",
+      "Skill(gsd:execute-phase)",
+      "Skill(gsd:execute-phase:*)",
+      "Bash(npx tsc:*)",
+      "Bash([ -f \"types/index.ts\" ])",
+      "Bash([ -f \"hooks/useLogisticsData.ts\" ])",
+      "Bash([ -f \".planning/phases/03-logistics-module/03-02-SUMMARY.md\" ])",
+      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs state advance-plan)"
+    ]
+  }
+}
