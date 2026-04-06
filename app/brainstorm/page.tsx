@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
-import { Lightbulb, Plus, X, Loader2, ShieldAlert } from 'lucide-react'
+import { Lightbulb, Plus, X, Loader2, ShieldAlert, Pencil, Bold, Italic, List } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ReactMarkdown from 'react-markdown'
 
 // ─── KOLORY KARTECZEK ────────────────────────────────────────────
 const COLORS = [
@@ -21,7 +22,6 @@ type ColorId = typeof COLORS[number]['id']
 
 // ─── HELPERS ─────────────────────────────────────────────────────
 
-// Deterministyczna rotacja — na podstawie id karty, bez losowości przy re-renderach
 function getRotation(id: string): string {
   let h = 0
   for (let i = 0; i < id.length; i++) {
@@ -54,14 +54,72 @@ interface ViceUser {
   org_function: string | null
 }
 
+// ─── MARKDOWN TOOLBAR ─────────────────────────────────────────────
+function MarkdownToolbar({
+  textareaRef,
+  value,
+  onChange,
+}: {
+  textareaRef: React.RefObject<HTMLTextAreaElement>
+  value: string
+  onChange: (val: string) => void
+}) {
+  const wrap = (before: string, after: string) => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const selected = value.slice(start, end)
+    const newVal = value.slice(0, start) + before + selected + after + value.slice(end)
+    onChange(newVal)
+    setTimeout(() => {
+      ta.focus()
+      ta.setSelectionRange(start + before.length, end + before.length)
+    }, 0)
+  }
+
+  const addList = () => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const pos = ta.selectionStart
+    const lineStart = value.lastIndexOf('\n', pos - 1) + 1
+    const newVal = value.slice(0, lineStart) + '- ' + value.slice(lineStart)
+    onChange(newVal)
+    setTimeout(() => {
+      ta.focus()
+      ta.setSelectionRange(pos + 2, pos + 2)
+    }, 0)
+  }
+
+  const btnCls = 'flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg transition-colors'
+
+  return (
+    <div className="flex gap-1.5 mb-1.5">
+      <button type="button" onClick={() => wrap('**', '**')} className={btnCls} title="Pogrubienie">
+        <Bold size={12} />
+      </button>
+      <button type="button" onClick={() => wrap('*', '*')} className={btnCls} title="Kursywa">
+        <Italic size={12} />
+      </button>
+      <button type="button" onClick={addList} className={btnCls} title="Lista punktowana">
+        <List size={12} /> <span>Lista</span>
+      </button>
+    </div>
+  )
+}
+
 // ─── KOMPONENT KARTECZKI ─────────────────────────────────────────
 function StickyCard({
   card,
+  canEdit,
   canDelete,
+  onEdit,
   onDelete,
 }: {
   card: BrainstormCard
+  canEdit: boolean
   canDelete: boolean
+  onEdit: (card: BrainstormCard) => void
   onDelete: (id: string) => void
 }) {
   const cfg = colorCfg(card.color)
@@ -72,21 +130,37 @@ function StickyCard({
       className={`break-inside-avoid mb-5 inline-block w-full ${cfg.bg} ${cfg.border} border shadow-lg ${cfg.shadow} rounded-xl p-4 relative group transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:z-10 cursor-default`}
       style={{ transform: rotation }}
     >
-      {/* Przycisk usuwania */}
-      {canDelete && (
-        <button
-          onClick={() => onDelete(card.id)}
-          className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/10 hover:bg-red-500 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150"
-          title="Usuń karteczkę"
-        >
-          <X size={11} />
-        </button>
-      )}
+      {/* Przyciski akcji */}
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
+        {canEdit && (
+          <button
+            onClick={() => onEdit(card)}
+            className="w-5 h-5 rounded-full bg-black/10 hover:bg-blue-500 hover:text-white flex items-center justify-center"
+            title="Edytuj karteczkę"
+          >
+            <Pencil size={9} />
+          </button>
+        )}
+        {canDelete && (
+          <button
+            onClick={() => onDelete(card.id)}
+            className="w-5 h-5 rounded-full bg-black/10 hover:bg-red-500 hover:text-white flex items-center justify-center"
+            title="Usuń karteczkę"
+          >
+            <X size={11} />
+          </button>
+        )}
+      </div>
 
-      {/* Treść */}
-      <p className={`text-sm font-medium leading-relaxed ${cfg.text} mb-4 whitespace-pre-wrap break-words`}>
-        {card.content}
-      </p>
+      {/* Treść — renderowana jako Markdown */}
+      <div className={`text-sm font-medium leading-relaxed ${cfg.text} mb-4 break-words
+        [&_strong]:font-extrabold
+        [&_em]:italic
+        [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-0.5
+        [&_p]:mb-1 [&_p:last-child]:mb-0`}
+      >
+        <ReactMarkdown>{card.content}</ReactMarkdown>
+      </div>
 
       {/* Przypisanie */}
       {card.assignee && (
@@ -125,10 +199,12 @@ export default function BrainstormPage() {
   const [filterBy, setFilterBy] = useState<string | null>(null)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingCard, setEditingCard] = useState<BrainstormCard | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState<{ content: string; color: ColorId; assigned_to: string }>({
     content: '', color: 'yellow', assigned_to: '',
   })
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     fetchData()
@@ -143,7 +219,6 @@ export default function BrainstormPage() {
       .order('created_at', { ascending: false })
     if (cardsData) setCards(cardsData as BrainstormCard[])
 
-    // Wiceprzewodniczący — szukamy po org_function lub tagach
     const { data: usersData } = await supabase
       .from('users')
       .select('id, first_name, last_name, org_function, tags, system_role')
@@ -154,28 +229,60 @@ export default function BrainstormPage() {
       (u.org_function ?? '').toLowerCase().includes('wice') ||
       (u.tags ?? []).some((t: string) => t.toLowerCase().includes('wice'))
     )
-    // Fallback: jeśli brak użytkowników z funkcją wice — pokaż wszystkich aktywnych jako opcje
     setViceChairs(filtered.length > 0 ? filtered : (usersData ?? []).slice(0, 15))
 
     setLoading(false)
   }
 
-  const handleAddCard = async (e: React.FormEvent) => {
+  const openAddModal = () => {
+    setEditingCard(null)
+    setForm({ content: '', color: 'yellow', assigned_to: '' })
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (card: BrainstormCard) => {
+    setEditingCard(card)
+    setForm({ content: card.content, color: card.color, assigned_to: card.assigned_to ?? '' })
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingCard(null)
+    setForm({ content: '', color: 'yellow', assigned_to: '' })
+  }
+
+  const handleSubmitCard = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!currentUser || !form.content.trim()) return
+    if (!form.content.trim()) return
     setIsSubmitting(true)
 
-    const { error } = await supabase.from('brainstorm_cards').insert([{
-      content: form.content.trim(),
-      color: form.color,
-      author_id: currentUser.id,
-      assigned_to: form.assigned_to || null,
-    }])
+    let error: { message: string } | null = null
+
+    if (editingCard) {
+      const result = await supabase
+        .from('brainstorm_cards')
+        .update({
+          content: form.content.trim(),
+          color: form.color,
+          assigned_to: form.assigned_to || null,
+        })
+        .eq('id', editingCard.id)
+      error = result.error
+    } else {
+      if (!currentUser) { setIsSubmitting(false); return }
+      const result = await supabase.from('brainstorm_cards').insert([{
+        content: form.content.trim(),
+        color: form.color,
+        author_id: currentUser.id,
+        assigned_to: form.assigned_to || null,
+      }])
+      error = result.error
+    }
 
     if (!error) {
-      toast.success('Pomysł dodany na tablicę!')
-      setIsModalOpen(false)
-      setForm({ content: '', color: 'yellow', assigned_to: '' })
+      toast.success(editingCard ? 'Karteczka zaktualizowana!' : 'Pomysł dodany na tablicę!')
+      closeModal()
       fetchData()
     } else {
       toast.error('Błąd zapisu karteczki')
@@ -196,7 +303,6 @@ export default function BrainstormPage() {
   const filteredCards = filterBy ? cards.filter(c => c.assigned_to === filterBy) : cards
   const preview = colorCfg(form.color)
 
-  // Blokada dla nieadminów (na wypadek gdyby ktoś wszedł przez URL)
   if (!authLoading && !isAdmin) {
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -229,7 +335,7 @@ export default function BrainstormPage() {
               </p>
             </div>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={openAddModal}
               className="bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-yellow-900 font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-yellow-400/30 transition-all text-sm"
             >
               <Plus size={20} /> Dodaj pomysł
@@ -301,7 +407,9 @@ export default function BrainstormPage() {
                 <StickyCard
                   key={card.id}
                   card={card}
+                  canEdit={currentUser?.id === card.author_id || isAdmin}
                   canDelete={currentUser?.id === card.author_id || isAdmin}
+                  onEdit={openEditModal}
                   onDelete={handleDelete}
                 />
               ))}
@@ -310,35 +418,44 @@ export default function BrainstormPage() {
         </div>
       </div>
 
-      {/* ─── MODAL: Dodaj pomysł ──────────────────────────────── */}
+      {/* ─── MODAL: Dodaj / Edytuj pomysł ────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Lightbulb className="text-yellow-500" size={22} /> Nowy Pomysł
+                {editingCard
+                  ? <><Pencil className="text-blue-500" size={20} /> Edytuj Karteczkę</>
+                  : <><Lightbulb className="text-yellow-500" size={22} /> Nowy Pomysł</>
+                }
               </h2>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleAddCard} className="p-6 space-y-5">
+            <form onSubmit={handleSubmitCard} className="p-6 space-y-5">
 
-              {/* Treść */}
+              {/* Treść z toolbarem */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
                   Treść pomysłu
                 </label>
+                <MarkdownToolbar
+                  textareaRef={textareaRef}
+                  value={form.content}
+                  onChange={content => setForm({ ...form, content })}
+                />
                 <textarea
+                  ref={textareaRef}
                   required
                   rows={4}
                   autoFocus
-                  placeholder="Opisz swój pomysł..."
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-yellow-400/40 text-slate-900 dark:text-white resize-none custom-scrollbar transition-all"
+                  placeholder="Opisz swój pomysł... (obsługuje **pogrubienie**, *kursywę*, listy)"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-yellow-400/40 text-slate-900 dark:text-white resize-none custom-scrollbar transition-all font-mono text-sm"
                   value={form.content}
                   onChange={e => setForm({ ...form, content: e.target.value })}
                 />
@@ -366,7 +483,7 @@ export default function BrainstormPage() {
                 </div>
               </div>
 
-              {/* Przypisanie do Wiceprzewodniczącego */}
+              {/* Przypisanie */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
                   Przypisz do (opcjonalnie)
@@ -391,9 +508,14 @@ export default function BrainstormPage() {
                   className={`w-44 ${preview.bg} ${preview.border} border shadow-lg ${preview.shadow} rounded-xl p-4`}
                   style={{ transform: 'rotate(-1.5deg)' }}
                 >
-                  <p className={`text-xs font-medium leading-relaxed ${preview.text} line-clamp-3 min-h-[3rem]`}>
-                    {form.content || 'Podgląd karteczki...'}
-                  </p>
+                  <div className={`text-xs font-medium leading-relaxed ${preview.text} line-clamp-3 min-h-[3rem]
+                    [&_strong]:font-extrabold [&_em]:italic [&_ul]:list-disc [&_ul]:list-inside [&_p]:mb-0.5`}
+                  >
+                    {form.content
+                      ? <ReactMarkdown>{form.content}</ReactMarkdown>
+                      : <span className="opacity-50">Podgląd karteczki...</span>
+                    }
+                  </div>
                   <div className={`mt-3 pt-2 border-t border-black/10 flex items-center gap-1 ${preview.text} opacity-50`}>
                     <div className="w-4 h-4 rounded-full bg-black/15 flex items-center justify-center text-[8px] font-extrabold">
                       {currentUser?.first_name?.charAt(0) ?? '?'}{currentUser?.last_name?.charAt(0) ?? ''}
@@ -408,8 +530,11 @@ export default function BrainstormPage() {
                 disabled={isSubmitting || !form.content.trim()}
                 className="w-full py-4 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold rounded-xl flex items-center justify-center gap-2 shadow-md shadow-yellow-400/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                Przypnij na tablicy
+                {isSubmitting
+                  ? <Loader2 size={18} className="animate-spin" />
+                  : editingCard ? <Pencil size={18} /> : <Plus size={18} />
+                }
+                {editingCard ? 'Zapisz zmiany' : 'Przypnij na tablicy'}
               </button>
             </form>
           </div>
