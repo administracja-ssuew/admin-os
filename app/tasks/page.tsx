@@ -578,6 +578,20 @@ export default function TasksPage() {
                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Projekt</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.project_id} onChange={(e) => setFormData({...formData, project_id: e.target.value})}><option value="">Brak</option>{projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Powiązana Sprawa</label><select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.case_id} onChange={(e) => setFormData({...formData, case_id: e.target.value})}><option value="">Brak Sprawy</option>{cases.map((c: any) => <option key={c.id} value={c.id}>{c.case_number}</option>)}</select></div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Termin (DDL)</label>
+                  <input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" value={formData.deadline} onChange={(e) => setFormData({...formData, deadline: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Priorytet</label>
+                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})}>
+                    <option value="low">Niski</option>
+                    <option value="medium">Średni</option>
+                    <option value="high">Wysoki</option>
+                  </select>
+                </div>
+              </div>
               <button type="submit" disabled={isSubmitting} className="w-full py-4 mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">{isSubmitting ? <Loader2 size={20} className="animate-spin" /> : 'Zleć Zadanie'}</button>
             </form>
           </div>
