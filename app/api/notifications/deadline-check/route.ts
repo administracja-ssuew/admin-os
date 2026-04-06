@@ -2,22 +2,30 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '../../../../lib/email'
 import { deadlineReminderTemplate } from '../../../../lib/email-templates'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 // GET /api/notifications/deadline-check
 // Wywołać jako cron (np. Vercel Cron Job co 24h)
+// Cron caller musi wysyłać: Authorization: Bearer $CRON_SECRET
 export async function GET(request: Request) {
-  // Opcjonalna weryfikacja secret dla cron (przez query param ?secret=)
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const { searchParams } = new URL(request.url)
-    if (searchParams.get('secret') !== cronSecret) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseServiceKey) {
+    return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' }, { status: 500 })
   }
+
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return Response.json({ error: 'CRON_SECRET is not configured' }, { status: 500 })
+  }
+
+  // Weryfikacja przez Authorization header (sekrety w query params trafiają do logów serwera — SEC-05)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseServiceKey
+  )
 
   try {
     const tomorrow = new Date()
