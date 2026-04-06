@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCases } from '../../hooks/useCases'
 import ConfirmDialog from '../ConfirmDialog'
 import toast from 'react-hot-toast'
 import {
@@ -9,7 +10,7 @@ import {
   Paperclip, UploadCloud, Trash2, X, ExternalLink, Activity,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { ArchiveFolder, Petition, AppUser, CaseAttachment } from '../../types'
+import type { ArchiveFolder, Petition, AppUser, CaseAttachment, Case, CaseStatus } from '../../types'
 
 // ─── TYPY LOKALNE ────────────────────────────────────────────────────────────
 interface DeptMember {
@@ -37,6 +38,12 @@ export function ArchivingPanel({
   isAdmin,
   onRefetch,
 }: ArchivingPanelProps) {
+  // Stan: zakładki
+  const [activeTab, setActiveTab] = useState<'folders' | 'cases'>('folders')
+
+  // Hook spraw
+  const { cases, loading: casesLoading } = useCases()
+
   // Stany: teczki archiwalne
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false)
   const [isSubmittingArchive, setIsSubmittingArchive] = useState(false)
@@ -184,9 +191,98 @@ export function ArchivingPanel({
     }
   }
 
+  // ─── DERIVED: SPRAWY DZIAŁU ──────────────────────────────────
+  const deptCases = cases.filter(c => c.department_id === currentUser?.department_id)
+
+  const caseColumns: { id: CaseStatus; title: string; color: string; textColor: string }[] = [
+    { id: 'new', title: 'Nowe', color: 'bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50', textColor: 'text-slate-600 dark:text-slate-400' },
+    { id: 'in_progress', title: 'W Toku', color: 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50', textColor: 'text-blue-700 dark:text-blue-400' },
+    { id: 'closed', title: 'Zamknięte', color: 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/50', textColor: 'text-green-700 dark:text-green-500' },
+  ]
+
   // ─── JSX ───────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      {/* Zakładki */}
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+        <button
+          onClick={() => setActiveTab('folders')}
+          className={`px-4 py-2 text-sm font-bold transition-colors border-b-2 -mb-px ${
+            activeTab === 'folders'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          Foldery i Podania
+        </button>
+        <button
+          onClick={() => setActiveTab('cases')}
+          className={`px-4 py-2 text-sm font-bold transition-colors border-b-2 -mb-px ${
+            activeTab === 'cases'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          Sprawy
+        </button>
+      </div>
+
+      {/* Zawartość zakładki Sprawy — Kanban */}
+      {activeTab === 'cases' && (
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Sprawy działu</h2>
+          {casesLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="animate-spin text-slate-400" size={24} />
+            </div>
+          ) : deptCases.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+              <p className="font-bold text-lg mb-1">Brak spraw</p>
+              <p className="text-sm">Dział nie ma przypisanych spraw w systemie.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {caseColumns.map(col => {
+                const colCases = deptCases.filter(c => c.status === col.id)
+                return (
+                  <div key={col.id} className={`rounded-xl p-3 ${col.color}`}>
+                    <div className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center justify-between ${col.textColor}`}>
+                      <span>{col.title}</span>
+                      <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-400">{colCases.length}</span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {colCases.map(c => (
+                        <div
+                          key={c.id}
+                          className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">{c.case_number}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold">{c.case_type}</span>
+                          </div>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{c.title}</p>
+                          {c.users && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                              {c.users.first_name} {c.users.last_name}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      {colCases.length === 0 && (
+                        <p className="text-xs text-slate-400 dark:text-slate-600 text-center py-4">Brak spraw</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Zawartość zakładki Foldery i Podania */}
+      {activeTab === 'folders' && (
+      <div className="flex flex-col gap-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
         {/* Systemy i operacje */}
@@ -626,6 +722,8 @@ export function ArchivingPanel({
 
       {/* ConfirmDialog — nie jest potrzebny dla archiwizacji (używamy confirm natywnego w źródle) */}
       {/* Archiwizacja używa bezpośrednich delete bez confirm dialog */}
+      </div>
+      )}
     </div>
   )
 }
