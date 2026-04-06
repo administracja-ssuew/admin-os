@@ -189,7 +189,7 @@ export default function CREDPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
       <Sidebar />
 
-      <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden pt-14 md:pt-0">
 
         {/* ── HEADER ─────────────────────────────────────────────── */}
         <div className="shrink-0 px-8 pt-8 pb-4">

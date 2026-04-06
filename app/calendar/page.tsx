@@ -108,7 +108,7 @@ export default function CalendarPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative overflow-hidden">
       <Sidebar />
       
-      <div className="flex-1 ml-64 p-8 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 md:ml-64 p-8 pt-16 md:pt-8 flex flex-col h-screen overflow-hidden">
         
         {/* NAGŁÓWEK */}
         <div className="flex justify-between items-center mb-8 shrink-0">

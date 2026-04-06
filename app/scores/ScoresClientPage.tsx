@@ -20,6 +20,7 @@ interface Member {
   email: string
   org_function: string | null
   system_role: string
+  personal_limit: number | null
   departments: { name: string }[] | null
 }
 
@@ -82,7 +83,7 @@ export default function ScoresClientPage() {
     // Pobierz wszystkich aktywnych Członków (active, admin, superadmin)
     const { data: membersData } = await supabase
       .from('users')
-      .select('id, first_name, last_name, email, org_function, system_role, departments(name)')
+      .select('id, first_name, last_name, email, org_function, system_role, personal_limit, departments(name)')
       .in('system_role', ['active', 'admin', 'superadmin'])
       .order('last_name', { ascending: true })
 
@@ -107,7 +108,7 @@ export default function ScoresClientPage() {
         saved: !!existing,
         saving: false,
         editingLimit: false,
-        limitInput: '20',
+        limitInput: String(m.personal_limit ?? 20),
       }
     })
 
@@ -122,18 +123,18 @@ export default function ScoresClientPage() {
     setRows(prev => ({ ...prev, [userId]: { ...prev[userId], [field]: value } }))
   }
 
+  const getLimit = (member: Member) => member.personal_limit ?? 20
+
   const getTotal = (userId: string, member: Member) => {
     const row = rows[userId]
     if (!row) return 0
     const a = parseFloat(row.activity) || 0
     const q = parseFloat(row.quality) || 0
-    const limit = 20
-    return Math.min(a + q, limit)
+    return Math.min(a + q, getLimit(member))
   }
 
   const getPercent = (userId: string, member: Member) => {
-    const limit = 20
-    return Math.round((getTotal(userId, member) / limit) * 100)
+    return Math.round((getTotal(userId, member) / getLimit(member)) * 100)
   }
 
   const saveScore = async (member: Member) => {
@@ -142,7 +143,7 @@ export default function ScoresClientPage() {
 
     const a = parseFloat(row.activity) || 0
     const q = parseFloat(row.quality) || 0
-    const limit = 20
+    const limit = getLimit(member)
 
     if (a + q > limit) {
       toast.error(`Suma punktów (${a + q}) przekracza limit tej osoby (${limit})`)
@@ -169,9 +170,24 @@ export default function ScoresClientPage() {
   }
 
   const saveLimit = async (member: Member) => {
-    // personal_limit column not yet in schema — just close editing mode
-    updateRow(member.id, 'editingLimit', false)
-    toast('Limit musi być skonfigurowany w bazie danych')
+    const row = rows[member.id]
+    if (!row) return
+    const newLimit = parseInt(row.limitInput)
+    if (isNaN(newLimit) || newLimit < 1 || newLimit > 100) {
+      toast.error('Limit musi być liczbą od 1 do 100')
+      return
+    }
+    const { error } = await supabase
+      .from('users')
+      .update({ personal_limit: newLimit })
+      .eq('id', member.id)
+    if (!error) {
+      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, personal_limit: newLimit } : m))
+      updateRow(member.id, 'editingLimit', false)
+      toast.success(`Limit zmieniony na ${newLimit} pkt`)
+    } else {
+      toast.error('Błąd zapisu limitu')
+    }
   }
 
   const prevMonth = () => {
@@ -285,7 +301,7 @@ export default function ScoresClientPage() {
                 if (!row) return null
                 const total = getTotal(member.id, member)
                 const pct = getPercent(member.id, member)
-                const limit = 20
+                const limit = getLimit(member)
                 const a = parseFloat(row.activity) || 0
                 const q = parseFloat(row.quality) || 0
                 const isOverLimit = a + q > limit

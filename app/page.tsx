@@ -143,7 +143,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative overflow-hidden">
       <Sidebar />
       
-      <div className="flex-1 ml-64 p-8 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 md:ml-64 p-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar">
         
         <div className="mb-10">
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2 transition-colors">

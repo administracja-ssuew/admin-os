@@ -77,7 +77,7 @@ export default function MyDepartmentPage() {
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 ml-64 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 md:ml-64 overflow-y-auto pt-14 md:pt-0 p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6 flex items-center gap-3">
             <Building2 size={28} className="text-blue-500" />

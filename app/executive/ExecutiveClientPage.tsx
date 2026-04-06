@@ -139,7 +139,7 @@ export default function ExecutiveClientPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 ml-64 p-8 overflow-y-auto custom-scrollbar flex flex-col h-screen">
+      <div className="flex-1 md:ml-64 p-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar flex flex-col h-screen">
 
         {/* NAGŁÓWEK VIP */}
         <div className="bg-gradient-to-r from-slate-900 to-black rounded-3xl p-8 text-white shadow-xl shadow-red-900/20 mb-8 relative overflow-hidden border border-slate-800 shrink-0">

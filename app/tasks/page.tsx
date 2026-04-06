@@ -319,7 +319,7 @@ export default function TasksPage() {
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative overflow-hidden">
       <Sidebar />
-      <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all flex flex-col h-screen ml-16">
+      <div className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-4 transition-all flex flex-col h-screen">
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 shrink-0">
           <div><h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3 transition-colors"><CheckSquare className="text-green-500" size={32} /> Tablica Operacyjna</h1></div>

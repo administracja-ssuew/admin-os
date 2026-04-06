@@ -201,7 +201,7 @@ export default function BrainstormPage() {
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
         <Sidebar />
-        <div className="flex-1 ml-64 flex flex-col items-center justify-center gap-4 text-center p-8">
+        <div className="flex-1 md:ml-64 flex flex-col items-center justify-center gap-4 text-center p-8 pt-16 md:pt-8">
           <ShieldAlert size={64} className="text-slate-300 dark:text-slate-600" />
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Brak dostępu</h2>
           <p className="text-slate-500 dark:text-slate-400 max-w-sm">Ta sekcja jest dostępna wyłącznie dla Zarządu i Administratorów Systemu.</p>
@@ -214,7 +214,7 @@ export default function BrainstormPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <Sidebar />
 
-      <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden pt-14 md:pt-0">
 
         {/* ─── NAGŁÓWEK ─────────────────────────────────────── */}
         <div className="p-8 pb-4 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors">

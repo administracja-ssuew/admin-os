@@ -123,7 +123,7 @@ export default function DocumentsPage() {
     <div className="flex min-h-screen bg-gray-50 relative overflow-hidden">
       <Sidebar />
       
-      <div className="flex-1 ml-64 p-8 transition-all">
+      <div className="flex-1 md:ml-64 p-8 pt-16 md:pt-8 transition-all">
         
         <div className="flex justify-between items-center mb-8">
           <div>
