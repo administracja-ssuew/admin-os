@@ -12,7 +12,7 @@ import { sendNotification } from '../../lib/notify'
 import {
   Briefcase, Plus, FileText, Link as LinkIcon, X, Clock, User,
   Building2, Send, Loader2, Shield, Paperclip, ChevronLeft,
-  ChevronRight, Trash2, Edit2, Check, ChevronDown
+  ChevronRight, Trash2, Edit2, Check, ChevronDown, ArrowRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Case, CaseComment, AppUser, Department } from '../../types'
@@ -32,6 +32,7 @@ export default function CasesPage() {
   const [credSignature, setCredSignature] = useState('')
 
   const [comments, setComments] = useState<CaseComment[]>([])
+  const [auditEvents, setAuditEvents] = useState<any[]>([])
   const [newComment, setNewComment] = useState('')
   const [isSendingComment, setIsSendingComment] = useState(false)
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
@@ -87,6 +88,7 @@ export default function CasesPage() {
     setIsDrawerOpen(true)
     setEditingCommentId(null)
     fetchComments(c.id)
+    fetchAuditEvents(c.id)
   }
 
   const fetchComments = async (caseId: string) => {
@@ -94,6 +96,16 @@ export default function CasesPage() {
       .from('case_comments').select('*, users(first_name, last_name)')
       .eq('case_id', caseId).order('created_at', { ascending: true })
     if (data) setComments(data)
+  }
+
+  const fetchAuditEvents = async (caseId: string) => {
+    const { data } = await supabase
+      .from('audit_log')
+      .select('*')
+      .eq('entity_type', 'case')
+      .eq('entity_id', caseId)
+      .order('created_at', { ascending: true })
+    if (data) setAuditEvents(data)
   }
 
   const saveCredSignature = async () => {
@@ -113,6 +125,7 @@ export default function CasesPage() {
       setStatusDropdownOpen(false)
       toast.success(`Status zmieniony na: ${statusLabel(newStatus)}`)
       await logAudit({ userId: currentUser.id, action: 'case.status_change', entityType: 'case', entityId: selectedCase.id, oldValue: { status: oldStatus }, newValue: { status: newStatus } })
+      fetchAuditEvents(selectedCase.id)
       // Powiadomienie do właściciela sprawy
       if (selectedCase.owner_id && selectedCase.owner_id !== currentUser.id) {
         const owner = users.find(u => u.id === selectedCase.owner_id)
@@ -211,7 +224,18 @@ export default function CasesPage() {
     e.preventDefault()
     setIsSubmitting(true)
     const currentYear = new Date().getFullYear()
-    const randomNum = Math.floor(1000 + Math.random() * 9000)
+    const { data: lastCase } = await supabase
+      .from('cases')
+      .select('case_number')
+      .ilike('case_number', `SPR/${currentYear}/%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    let nextNum = 1
+    if (lastCase && lastCase.length > 0) {
+      const parsed = parseInt(lastCase[0].case_number.split('/')[2])
+      if (!isNaN(parsed)) nextNum = parsed + 1
+    }
+    const caseNumber = `SPR/${currentYear}/${nextNum}`
     const { error } = await supabase.from('cases').insert([{
       title: formData.title,
       description: formData.description || null,
@@ -219,7 +243,7 @@ export default function CasesPage() {
       confidentiality_level: formData.confidentiality_level,
       owner_id: formData.owner_id || currentUser?.id,
       department_id: formData.department_id || null,
-      case_number: `SPR/${currentYear}/${randomNum}`,
+      case_number: caseNumber,
       status: 'new',
       attachments: []
     }])
@@ -497,8 +521,31 @@ export default function CasesPage() {
                     </div>
                   </div>
 
-                  {/* Komentarze */}
-                  {comments.map(comment => {
+                  {/* Zdarzenia z audit_log (zmiany statusu, etc.) i komentarze — posortowane chronologicznie */}
+                  {[
+                    ...auditEvents.map(e => ({ type: 'audit' as const, date: e.created_at, data: e })),
+                    ...comments.map(c => ({ type: 'comment' as const, date: c.created_at, data: c })),
+                  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(item => {
+                    if (item.type === 'audit') {
+                      const e = item.data
+                      const oldS = e.old_value?.status
+                      const newS = e.new_value?.status
+                      return (
+                        <div key={e.id} className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0"><ArrowRight size={14} /></div>
+                          <div className="flex-1 bg-white dark:bg-slate-800 p-3 rounded-xl border border-amber-100 dark:border-amber-900/30 shadow-sm">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-slate-900 dark:text-white text-sm">Zmiana statusu</span>
+                              <time className="font-mono text-[10px] text-slate-400">{new Date(e.created_at).toLocaleDateString('pl-PL')}</time>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {oldS && newS ? <><span className="font-semibold">{statusLabel(oldS)}</span> → <span className="font-semibold text-blue-600 dark:text-blue-400">{statusLabel(newS)}</span></> : statusLabel(newS ?? '')}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    }
+                    const comment = item.data
                     const isOwner = comment.user_id === currentUser?.id
                     const canEdit = isOwner || isAdmin
                     return (
