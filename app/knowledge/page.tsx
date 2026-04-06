@@ -132,13 +132,13 @@ export default function KnowledgePage() {
     setIsUploading(true)
     const ext = file.name.split('.').pop()
     const path = `knowledge/${activeArticle.id}/${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
+    const { error: uploadError } = await supabase.storage.from('adminos-files').upload(path, file, { upsert: true })
     if (uploadError) {
       toast.error('Nie udało się wgrać pliku')
       setIsUploading(false)
       return
     }
-    const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path)
+    const { data: { publicUrl } } = supabase.storage.from('adminos-files').getPublicUrl(path)
     const { error: updateError } = await supabase
       .from('knowledge_articles')
       .update({ file_url: publicUrl, file_name: file.name, updated_by: currentUser?.id, updated_at: new Date().toISOString() })
