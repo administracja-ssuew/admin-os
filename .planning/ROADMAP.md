@@ -107,7 +107,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening & Stability | 0/6 | Not started | - |
+| 1. Security Hardening & Stability | 1/6 | In Progress|  |
 | 2. My-Department Refactor | 0/5 | Not started | - |
 | 3. Logistics Module | 0/5 | Not started | - |
 | 4. Archiving Module | 0/5 | Not started | - |

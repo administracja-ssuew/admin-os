@@ -13,8 +13,8 @@
 - [ ] **SEC-02**: Endpoint `/api/notifications` wymaga uwierzytelnionego Bearer tokenu (sesji użytkownika)
 - [ ] **SEC-03**: Publiczne przesyłanie formularza `/wniosek` korzysta z dedykowanego endpointu `/api/notifications/external` z własnym sekretem (nie z sesją użytkownika)
 - [ ] **SEC-04**: Polityka RLS na tabeli `notifications` ogranicza INSERT wyłącznie do service role
-- [ ] **SEC-05**: `CRON_SECRET` jest wymagany (nie opcjonalny) dla endpointu `deadline-check`
-- [ ] **SEC-06**: Zmienna `SUPABASE_SERVICE_ROLE_KEY` w trasie API nie ma fallbacku na klucz anonimowy
+- [x] **SEC-05**: `CRON_SECRET` jest wymagany (nie opcjonalny) dla endpointu `deadline-check`
+- [x] **SEC-06**: Zmienna `SUPABASE_SERVICE_ROLE_KEY` w trasie API nie ma fallbacku na klucz anonimowy
 
 ### Stability (Stabilność)
 
@@ -119,8 +119,8 @@
 | SEC-02 | Phase 1 | Pending |
 | SEC-03 | Phase 1 | Pending |
 | SEC-04 | Phase 1 | Pending |
-| SEC-05 | Phase 1 | Pending |
-| SEC-06 | Phase 1 | Pending |
+| SEC-05 | Phase 1 | Complete |
+| SEC-06 | Phase 1 | Complete |
 | STAB-01 | Phase 1 | Pending |
 | STAB-02 | Phase 1 | Pending |
 | STAB-03 | Phase 1 | Pending |
