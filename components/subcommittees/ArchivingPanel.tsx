@@ -10,7 +10,7 @@ import EmptyState from '../EmptyState'
 import toast from 'react-hot-toast'
 import {
   Plus, Loader2, FileText, FolderClosed, BookOpen, Send,
-  Paperclip, UploadCloud, Trash2, X, ExternalLink, Activity,
+  Paperclip, UploadCloud, Trash2, X, ExternalLink, Activity, Search, Phone,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { ArchiveFolder, Petition, AppUser, CaseAttachment, Case, CaseStatus, FolderType } from '../../types'
@@ -47,7 +47,7 @@ export function ArchivingPanel({
   const [activeTab, setActiveTab] = useState<'folders' | 'cases'>('folders')
 
   // Hook spraw
-  const { cases, loading: casesLoading } = useCases()
+  const { cases, loading: casesLoading, refetch: refetchCases } = useCases()
 
   // Stany: teczki archiwalne
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false)
@@ -57,7 +57,11 @@ export function ArchivingPanel({
     status: 'W przygotowaniu',
     notes: '',
     folder_type: 'general' as FolderType,
+    contact_name: '',
+    contact_info: '',
   })
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [assignSearch, setAssignSearch] = useState('')
   const [selectedFolder, setSelectedFolder] = useState<ArchiveFolder | null>(null)
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
 
@@ -83,7 +87,7 @@ export function ArchivingPanel({
     await supabase.from('archive_folders').insert([archiveForm])
     toast.success('Teczka utworzona!')
     setIsArchiveModalOpen(false)
-    setArchiveForm({ title: '', status: 'W przygotowaniu', notes: '', folder_type: 'general' })
+    setArchiveForm({ title: '', status: 'W przygotowaniu', notes: '', folder_type: 'general', contact_name: '', contact_info: '' })
     await onRefetch()
     setIsSubmittingArchive(false)
   }
@@ -211,6 +215,18 @@ export function ArchivingPanel({
   // ─── DERIVED: SPRAWY DZIAŁU ──────────────────────────────────
   const deptCases = cases.filter(c => c.department_id === currentUser?.department_id)
 
+  const assignCase = async (caseId: string) => {
+    await supabase.from('cases').update({ department_id: currentUser?.department_id }).eq('id', caseId)
+    setIsAssignModalOpen(false)
+    setAssignSearch('')
+    await refetchCases()
+  }
+
+  const unassignCase = async (caseId: string) => {
+    await supabase.from('cases').update({ department_id: null }).eq('id', caseId)
+    await refetchCases()
+  }
+
   const caseColumns: { id: CaseStatus; title: string; color: string; textColor: string }[] = [
     { id: 'new', title: 'Nowe', color: 'bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50', textColor: 'text-slate-600 dark:text-slate-400' },
     { id: 'in_progress', title: 'W Toku', color: 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50', textColor: 'text-blue-700 dark:text-blue-400' },
@@ -255,11 +271,19 @@ export function ArchivingPanel({
       {/* Zawartość zakładki Sprawy — Kanban */}
       {activeTab === 'cases' && (
         <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Sprawy działu</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Sprawy przypisane do podkomisji</h2>
+            <button
+              onClick={() => setIsAssignModalOpen(true)}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+            >
+              <Plus size={14} /> Przypisz sprawę
+            </button>
+          </div>
           {casesLoading ? (
             <SkeletonLoader variant="kanban-column" count={3} />
           ) : deptCases.length === 0 ? (
-            <EmptyState title="Brak spraw" description="Dział nie ma przypisanych spraw w systemie." />
+            <EmptyState title="Brak przypisanych spraw" description="Przypisz sprawy z Rejestru Spraw do tej podkomisji" actionLabel="Przypisz sprawę" onAction={() => setIsAssignModalOpen(true)} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {caseColumns.map(col => {
@@ -274,9 +298,16 @@ export function ArchivingPanel({
                       {colCases.map(c => (
                         <div
                           key={c.id}
-                          className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+                          className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm group relative"
                         >
-                          <div className="flex items-center justify-between mb-1">
+                          <button
+                            onClick={() => unassignCase(c.id)}
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all"
+                            title="Odepnij sprawę"
+                          >
+                            <X size={12}/>
+                          </button>
+                          <div className="flex items-center justify-between mb-1 pr-4">
                             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">{c.case_number}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold">{c.case_type}</span>
                           </div>
@@ -295,6 +326,54 @@ export function ArchivingPanel({
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Modal: przypisz sprawę */}
+          {isAssignModalOpen && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+                  <h3 className="font-bold text-slate-900 dark:text-white">Przypisz sprawę do podkomisji</h3>
+                  <button onClick={() => { setIsAssignModalOpen(false); setAssignSearch('') }} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                    <X size={20}/>
+                  </button>
+                </div>
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                    <input
+                      type="text"
+                      placeholder="Szukaj po numerze lub tytule..."
+                      value={assignSearch}
+                      onChange={e => setAssignSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1">
+                  {cases
+                    .filter(c => c.department_id !== currentUser?.department_id)
+                    .filter(c => !assignSearch || c.title.toLowerCase().includes(assignSearch.toLowerCase()) || c.case_number.toLowerCase().includes(assignSearch.toLowerCase()))
+                    .map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => assignCase(c.id)}
+                        className="w-full text-left p-3 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        <div className="font-mono text-[10px] text-blue-600 dark:text-blue-400 font-bold">{c.case_number}</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white">{c.title}</div>
+                        {c.departments && (
+                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Przypisana do: {c.departments.name}</div>
+                        )}
+                      </button>
+                    ))
+                  }
+                  {cases.filter(c => c.department_id !== currentUser?.department_id).length === 0 && (
+                    <p className="text-sm text-slate-400 text-center py-8">Brak dostępnych spraw</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -436,6 +515,13 @@ export function ArchivingPanel({
                     <option value="Przekazane do Archiwum">Zarchiwizowane</option>
                   </select>
                   <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-relaxed break-words">{folder.title}</h3>
+                  {folder.contact_name && (
+                    <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                      <Phone size={10} className="shrink-0"/>
+                      <span className="font-bold">{folder.contact_name}</span>
+                      {folder.contact_info && <span className="truncate">— {folder.contact_info}</span>}
+                    </div>
+                  )}
                   <div className="mt-2">{getFolderTypeBadge(folder.folder_type ?? 'general')}</div>
                 </div>
                 <div className="flex justify-between items-end pt-3 border-t border-slate-200 dark:border-slate-700 mt-auto">
@@ -504,6 +590,13 @@ export function ArchivingPanel({
                 </div>
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedFolder.title}</h2>
+              {selectedFolder.contact_name && (
+                <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 mb-1">
+                  <Phone size={13} className="text-slate-400 shrink-0"/>
+                  <span className="font-bold">{selectedFolder.contact_name}</span>
+                  {selectedFolder.contact_info && <span className="text-slate-400 dark:text-slate-500">— {selectedFolder.contact_info}</span>}
+                </div>
+              )}
               <p className="text-xs font-mono text-slate-500">Utworzono: {selectedFolder.created_at.substring(0, 10)}</p>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
@@ -685,6 +778,30 @@ export function ArchivingPanel({
                   <option value="general">Ogólna</option>
                   <option value="project_report">Raport projektowy</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  Osoba kontaktowa (opcjonalnie)
+                </label>
+                <input
+                  type="text"
+                  placeholder="np. Jan Kowalski"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
+                  value={archiveForm.contact_name}
+                  onChange={e => setArchiveForm({ ...archiveForm, contact_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  Dane kontaktowe
+                </label>
+                <input
+                  type="text"
+                  placeholder="np. jan@example.com / +48 123 456 789"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
+                  value={archiveForm.contact_info}
+                  onChange={e => setArchiveForm({ ...archiveForm, contact_info: e.target.value })}
+                />
               </div>
               <button
                 type="submit"

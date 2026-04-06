@@ -287,6 +287,8 @@ export interface ArchiveFolder {
   status: ArchiveFolderStatus
   folder_type: FolderType
   notes: string | null
+  contact_name?: string | null
+  contact_info?: string | null
   attachments: CaseAttachment[]
   created_at: string
 }

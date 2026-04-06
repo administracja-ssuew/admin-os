@@ -570,7 +570,7 @@ export default function MeetingsPage() {
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:opacity-60" />
                       ) : (
                         <input type={field === 'date' ? 'date' : 'text'} value={editForm[field as keyof typeof editForm]}
-                          onChange={e => setEditForm({ ...editForm, [field]: e.target.value })} disabled={isFinalized}
+                          onChange={e => setEditForm({ ...editForm, [field]: e.target.value })} disabled={isFinalized || !isAdmin}
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60" />
                       )}
                     </div>

@@ -72,7 +72,7 @@ export default function DashboardPage() {
       .select('*, users(first_name, last_name)')
       .eq('priority', 'high')
       .neq('status', 'done')
-      .neq('is_zarzad', true)
+      .or('is_zarzad.is.null,is_zarzad.eq.false')
       .order('deadline', { ascending: true })
       .limit(4)
 
