@@ -38,15 +38,15 @@ created: 2026-04-04
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 1 | SEC-06 | manual | `grep -n "SUPABASE_SERVICE_ROLE_KEY" src/app/api/notifications/route.ts` | ✅ | ⬜ pending |
+| 01-01-01 | 01 | 1 | SEC-06 | manual | `grep -n "SUPABASE_SERVICE_ROLE_KEY" app/api/notifications/route.ts` | ✅ | ⬜ pending |
+| 01-01-02 | 01 | 1 | SEC-05 | manual | `grep -n "CRON_SECRET" app/api/notifications/deadline-check/route.ts` | ✅ | ⬜ pending |
 | 01-02-01 | 02 | 1 | SEC-03 | manual | `curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/notifications/external` | ✅ | ⬜ pending |
 | 01-03-01 | 03 | 1 | SEC-02 | manual | `curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/notifications` | ✅ | ⬜ pending |
 | 01-04-01 | 04 | 2 | SEC-04 | manual | Supabase dashboard RLS policy inspection | ❌ manual | ⬜ pending |
 | 01-05-01 | 05 | 2 | SEC-01 | manual | `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/scores` (expect 302) | ✅ | ⬜ pending |
-| 01-05-02 | 05 | 2 | SEC-05 | manual | `grep -n "CRON_SECRET" src/app/api/deadline-check/route.ts` | ✅ | ⬜ pending |
-| 01-06-01 | 06 | 2 | STAB-01 | manual | `grep -rn "case_number" src/` | ✅ | ⬜ pending |
+| 01-06-01 | 06 | 2 | STAB-01 | manual | `grep -rn "case_number" app/wniosek/page.tsx` | ✅ | ⬜ pending |
 | 01-06-02 | 06 | 2 | STAB-02 | manual | Supabase dashboard constraint inspection | ❌ manual | ⬜ pending |
-| 01-06-03 | 06 | 2 | STAB-03 | manual | `grep -n "unsubscribe\|removeAllChannels" src/` | ✅ | ⬜ pending |
+| 01-06-03 | 06 | 2 | STAB-03 | manual | `grep -n "removeChannel" components/NotificationBell.tsx` | ✅ | ⬜ pending |
 | 01-06-04 | 06 | 2 | STAB-04 | manual | Code review of mutation handlers | ❌ manual | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
