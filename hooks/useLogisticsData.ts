@@ -26,6 +26,7 @@ export interface UseLogisticsDataResult {
   loans: EquipmentLoan[]
   reports: LogisticsReport[]
   members: DeptMember[]
+  lowStockAssets: Asset[]   // per D-05: obliczane w hooku
   loading: boolean
   refetch: () => Promise<void>
 }
@@ -46,7 +47,7 @@ export function useLogisticsData(departmentId: string | undefined): UseLogistics
     setLoading(true)
 
     const [assetsRes, loansRes, reportsRes, membersRes] = await Promise.all([
-      supabase.from('assets').select('*').order('name', { ascending: true }),
+      supabase.from('assets').select('id, name, asset_type, status, location, notes, created_at, quantity, min_quantity, unit').order('name', { ascending: true }),
       supabase.from('equipment_loans').select('*').order('issue_date', { ascending: false }),
       supabase
         .from('reports')
@@ -68,5 +69,8 @@ export function useLogisticsData(departmentId: string | undefined): UseLogistics
     fetchData()
   }, [fetchData])
 
-  return { assets, loans, reports, members, loading, refetch: fetchData }
+  // Logika low stock po stronie aplikacji (per D-05) — bez DB trigger
+  const lowStockAssets = assets.filter(a => a.quantity < a.min_quantity && a.min_quantity > 0)
+
+  return { assets, loans, reports, members, lowStockAssets, loading, refetch: fetchData }
 }
