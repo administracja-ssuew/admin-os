@@ -10,7 +10,7 @@ import EmptyState from '../EmptyState'
 import toast from 'react-hot-toast'
 import {
   Plus, Loader2, FileText, FolderClosed, BookOpen, Send,
-  Paperclip, UploadCloud, Trash2, X, ExternalLink, Activity, Search, Phone,
+  Paperclip, UploadCloud, Trash2, X, ExternalLink, Activity, Search, Phone, Pencil, Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { ArchiveFolder, Petition, AppUser, CaseAttachment, Case, CaseStatus, FolderType } from '../../types'
@@ -64,6 +64,9 @@ export function ArchivingPanel({
   const [assignSearch, setAssignSearch] = useState('')
   const [selectedFolder, setSelectedFolder] = useState<ArchiveFolder | null>(null)
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
+  const [isFolderEditing, setIsFolderEditing] = useState(false)
+  const [folderEditForm, setFolderEditForm] = useState({ title: '', contact_name: '', contact_info: '' })
+  const [isSavingFolder, setIsSavingFolder] = useState(false)
 
   // Stany: podania
   const [isPetitionModalOpen, setIsPetitionModalOpen] = useState(false)
@@ -114,6 +117,26 @@ export function ArchivingPanel({
     setIsFolderDrawerOpen(false)
     await onRefetch()
     toast.success('Usunięto', { id: toastId })
+  }
+
+  const saveFolderEdit = async () => {
+    if (!selectedFolder) return
+    setIsSavingFolder(true)
+    const { error } = await supabase.from('archive_folders').update({
+      title: folderEditForm.title,
+      contact_name: folderEditForm.contact_name || null,
+      contact_info: folderEditForm.contact_info || null,
+    }).eq('id', selectedFolder.id)
+    if (!error) {
+      const updated = { ...selectedFolder, ...folderEditForm, contact_name: folderEditForm.contact_name || null, contact_info: folderEditForm.contact_info || null }
+      setSelectedFolder(updated)
+      setIsFolderEditing(false)
+      toast.success('Teczka zaktualizowana!')
+      await onRefetch()
+    } else {
+      toast.error('Błąd zapisu')
+    }
+    setIsSavingFolder(false)
   }
 
   // ─── MUTACJE: PODANIA ─────────────────────────────────────────
@@ -273,17 +296,19 @@ export function ArchivingPanel({
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Sprawy przypisane do podkomisji</h2>
-            <button
-              onClick={() => setIsAssignModalOpen(true)}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-            >
-              <Plus size={14} /> Przypisz sprawę
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setIsAssignModalOpen(true)}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+              >
+                <Plus size={14} /> Przypisz sprawę
+              </button>
+            )}
           </div>
           {casesLoading ? (
             <SkeletonLoader variant="kanban-column" count={3} />
           ) : deptCases.length === 0 ? (
-            <EmptyState title="Brak przypisanych spraw" description="Przypisz sprawy z Rejestru Spraw do tej podkomisji" actionLabel="Przypisz sprawę" onAction={() => setIsAssignModalOpen(true)} />
+            <EmptyState title="Brak przypisanych spraw" description="Przypisz sprawy z Rejestru Spraw do tej podkomisji" actionLabel={isAdmin ? "Przypisz sprawę" : undefined} onAction={isAdmin ? () => setIsAssignModalOpen(true) : undefined} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {caseColumns.map(col => {
@@ -300,13 +325,15 @@ export function ArchivingPanel({
                           key={c.id}
                           className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm group relative"
                         >
-                          <button
-                            onClick={() => unassignCase(c.id)}
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all"
-                            title="Odepnij sprawę"
-                          >
-                            <X size={12}/>
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => unassignCase(c.id)}
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all"
+                              title="Odepnij sprawę"
+                            >
+                              <X size={12}/>
+                            </button>
+                          )}
                           <div className="flex items-center justify-between mb-1 pr-4">
                             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">{c.case_number}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold">{c.case_type}</span>
@@ -572,32 +599,85 @@ export function ArchivingPanel({
                   <option value="Przekazane do Archiwum">Zarchiwizowane</option>
                 </select>
                 <div className="flex items-center gap-1">
+                  {isAdmin && !isFolderEditing && (
+                    <button
+                      onClick={() => { setFolderEditForm({ title: selectedFolder.title, contact_name: selectedFolder.contact_name ?? '', contact_info: selectedFolder.contact_info ?? '' }); setIsFolderEditing(true) }}
+                      className="text-slate-400 hover:text-blue-500 p-1 transition-colors"
+                      title="Edytuj teczkę"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
                   {isAdmin && (
                     <button
                       onClick={() => deleteArchiveFolder(selectedFolder.id)}
-                      className="text-slate-400 hover:text-red-500 p-1 mr-2 transition-colors"
+                      className="text-slate-400 hover:text-red-500 p-1 transition-colors"
                       title="Usuń Teczkę"
                     >
                       <Trash2 size={18} />
                     </button>
                   )}
                   <button
-                    onClick={() => setIsFolderDrawerOpen(false)}
+                    onClick={() => { setIsFolderDrawerOpen(false); setIsFolderEditing(false) }}
                     className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"
                   >
                     <X size={20} />
                   </button>
                 </div>
               </div>
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedFolder.title}</h2>
-              {selectedFolder.contact_name && (
-                <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 mb-1">
-                  <Phone size={13} className="text-slate-400 shrink-0"/>
-                  <span className="font-bold">{selectedFolder.contact_name}</span>
-                  {selectedFolder.contact_info && <span className="text-slate-400 dark:text-slate-500">— {selectedFolder.contact_info}</span>}
+
+              {isFolderEditing ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={folderEditForm.title}
+                    onChange={e => setFolderEditForm({ ...folderEditForm, title: e.target.value })}
+                    placeholder="Nazwa teczki"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-blue-400 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-base focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    value={folderEditForm.contact_name}
+                    onChange={e => setFolderEditForm({ ...folderEditForm, contact_name: e.target.value })}
+                    placeholder="Osoba kontaktowa (opcjonalnie)"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={folderEditForm.contact_info}
+                    onChange={e => setFolderEditForm({ ...folderEditForm, contact_info: e.target.value })}
+                    placeholder="Dane kontaktowe (opcjonalnie)"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white text-sm"
+                  />
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={saveFolderEdit}
+                      disabled={isSavingFolder || !folderEditForm.title.trim()}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm disabled:opacity-50 transition-colors"
+                    >
+                      <Check size={14}/> {isSavingFolder ? 'Zapisywanie...' : 'Zapisz'}
+                    </button>
+                    <button
+                      onClick={() => setIsFolderEditing(false)}
+                      className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm font-bold transition-colors"
+                    >
+                      Anuluj
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedFolder.title}</h2>
+                  {selectedFolder.contact_name && (
+                    <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 mb-1">
+                      <Phone size={13} className="text-slate-400 shrink-0"/>
+                      <span className="font-bold">{selectedFolder.contact_name}</span>
+                      {selectedFolder.contact_info && <span className="text-slate-400 dark:text-slate-500">— {selectedFolder.contact_info}</span>}
+                    </div>
+                  )}
+                  <p className="text-xs font-mono text-slate-500">Utworzono: {selectedFolder.created_at.substring(0, 10)}</p>
+                </>
               )}
-              <p className="text-xs font-mono text-slate-500">Utworzono: {selectedFolder.created_at.substring(0, 10)}</p>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted">
