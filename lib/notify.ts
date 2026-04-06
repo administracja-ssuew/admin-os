@@ -5,11 +5,16 @@ export async function sendNotification(type: string, payload: Record<string, any
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
 
+    if (!token) {
+      console.error('Notification send failed: no active session token')
+      return
+    }
+
     await fetch('/api/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ type, payload }),
     })

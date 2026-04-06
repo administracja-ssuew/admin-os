@@ -22,18 +22,20 @@ export async function POST(request: Request) {
 
     const authHeader = request.headers.get('Authorization')
     const token = authHeader?.replace('Bearer ', '')
+    if (!token) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    // Klient anon — wyłącznie do weryfikacji tokena użytkownika
+    const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    const { data: { user } } = await supabaseAnon.auth.getUser(token)
+    if (!user) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+    const callerUserId = user.id
 
     // Klient service role — do wszystkich operacji DB (INSERT do notifications, SELECT adminów)
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey)
-    // Klient anon — wyłącznie do weryfikacji tokena użytkownika
-    const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-
-    // Jeśli token podany — weryfikujemy usera
-    let callerUserId: string | null = null
-    if (token) {
-      const { data: { user } } = await supabaseAnon.auth.getUser(token)
-      callerUserId = user?.id ?? null
-    }
 
     const body = await request.json()
     const { type, payload } = body
@@ -172,9 +174,6 @@ export async function POST(request: Request) {
       default:
         return Response.json({ error: `Unknown notification type: ${type}` }, { status: 400 })
     }
-
-    // Suppress unused variable warning for callerUserId (reserved for future auth enforcement)
-    void callerUserId
 
     return Response.json({ success: true })
   } catch (err) {
