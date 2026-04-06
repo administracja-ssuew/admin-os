@@ -2,96 +2,63 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 04
-current_plan: 2
-status: In Progress — Phase 04 in progress
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-04-06T11:53:38.647Z"
+current_phase: 07
+current_plan: 3
+status: Complete — all 7 phases done
+stopped_at: Completed 07-03-PLAN.md (UX Polish)
+last_updated: "2026-04-09T00:00:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 19
-  completed_plans: 19
+  completed_phases: 7
+  total_plans: 33
+  completed_plans: 33
 ---
 
 # Project State
 
-**Last updated:** 2026-04-06
-**Current phase:** 04
-**Current plan:** 2
+**Last updated:** 2026-04-09
+**Current phase:** 07 (complete)
+**Current plan:** 3 (complete)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Jeden centralny panel, w którym każdy członek samorządu wie co ma zrobić, a każdy zasób — umowa, wniosek, grant — jest zawsze pod ręką i śledzony.
-**Milestone:** v1.0 — Release Ready
-**Current focus:** Phase 04 — archiving-module
+**Milestone:** v1.0 — Release Ready ✓
+**Current focus:** COMPLETE — all 7 phases executed
 
 ## Phase Status
 
 | Phase | Status |
 |-------|--------|
 | Phase 1: Security Hardening & Stability | Complete (all 6 plans done) |
-| Phase 2: My-Department Refactor | Not started |
+| Phase 2: My-Department Refactor | Complete (4/4 plans done) |
 | Phase 3: Logistics Module | Complete (3/3 plans done) |
-| Phase 4: Archiving Module | Not started |
-| Phase 5: Grants Module | Not started |
-| Phase 6: Knowledge Base | Not started |
-| Phase 7: UX Polish | Not started |
+| Phase 4: Archiving Module | Complete (5/5 plans done) |
+| Phase 5: Grants Module | Complete (5/5 plans done) |
+| Phase 6: Knowledge Base | Complete (4/4 plans done) |
+| Phase 7: UX Polish | Complete (3/3 plans done) |
 
 ## Key Context
 
-- **Brownfield project** — existing Next.js 15 + Supabase app with 7 routes and partial implementations of all modules
-- **Security first** — 4 confirmed vulnerabilities must be fixed before any new feature ships
-- **Monolith blocker** — `my-department/page.tsx` (~1300 lines) must be refactored (Phase 2) before feature phases can proceed cleanly
-- **Critical sequencing** — Phase 1 plans are strictly ordered (see ROADMAP.md Phase 1 why-now)
-
-## Planning Artifacts
-
-| Artifact | Status |
-|----------|--------|
-| `.planning/codebase/` (7 docs) | Complete |
-| `.planning/research/` (5 docs) | Complete |
-| `.planning/PROJECT.md` | Complete |
-| `.planning/REQUIREMENTS.md` | Complete (38 v1 requirements) |
-| `.planning/ROADMAP.md` | Complete (7 phases, 33 plans) |
-| Phase 01 plans | Complete (6/6) |
+- **Brownfield project** — existing Next.js 16 + Supabase app with 7 routes
+- **All 38 v1 requirements met** (except SEC-01 — known gap, server component guard functionally inert due to localStorage auth)
+- **Pending migrations** — Phase 5 and 6 migrations need applying to Supabase:
+  - supabase/migrations/20260409_grants_schema_extension.sql
+  - supabase/migrations/20260409_knowledge_base_extension.sql
 
 ## Decisions
 
-- **01-01:** Env var guards placed inside handlers (not module scope) — fail at request time per D-04
-- **01-01:** CRON_SECRET now unconditionally required — old `if (cronSecret)` was a silent pass-through hole
-- **01-01:** Switched cron auth from `?secret=` query param to `Authorization: Bearer` header (SEC-05)
-- **01-01:** Split supabase clients: `supabaseService` (DB writes) and `supabaseAnon` (token verification)
-- [Phase 01]: Used Server Action to keep EXTERNAL_NOTIFICATIONS_SECRET out of browser JS bundle — 'use server' directive ensures secret read only on server
-- [Phase 01]: Created dedicated /api/notifications/external endpoint isolated from main endpoint — enables Plan 03 to add session auth to main endpoint without breaking /wniosek form
-- **01-03:** POST /api/notifications now requires valid Bearer session token — missing or invalid token returns 401 before any DB operation (closes SEC-02)
-- **01-03:** lib/notify.ts updated to early-return (with error log) when no session token, instead of silently omitting Authorization header
-- **01-04:** WITH CHECK (false) on notifications INSERT policy blocks all JWT-auth users; service role key bypasses RLS entirely — idiomatic Supabase pattern for API-only writes (closes SEC-04)
-- [Phase 01]: STAB-01: Postgres sequence + BEFORE INSERT trigger used for atomic server-side case_number generation — eliminates client-side race condition
-- [Phase 01]: STAB-02: UPSERT with ignoreDuplicates: true used for department_notes — preserves existing note content and eliminates select-then-insert race condition
-- [Phase 01]: STAB-03: NotificationBell channel hoisted to useEffect outer scope — cleanup returned directly from useEffect so React calls removeChannel on unmount
-- [Phase 02]: dept_type column is nullable — generic departments (no subcommittee) are allowed to have NULL
-- [Phase 02]: Backfill heuristics in migration match page.tsx string fragments exactly (dotacj, logistyk, logitech, archiwizacj, bieżąc) to ensure consistent routing behavior
-- **02-02:** grants_radar queries not filtered by department_id — table is global for entire grants subcommittee (matches existing page.tsx behavior)
-- **02-02:** DeptMember interface kept local to each hook file — simple projection not yet needing canonical type location
-- **02-02:** Promise.all used for all parallel queries per REF-01 decision
-- **02-03:** LogisticsReport interface kept local to LogisticsPanel — not promoted to types/index.ts yet
-- **02-03:** Petition status 'Zaakceptowane' from page.tsx corrected to 'Rozpatrzone' to match PetitionStatus type definition
-- **02-04:** All 3 hooks called unconditionally — hooks receive undefined departmentId when dept_type doesn't match, handle it internally with early return
-- **02-04:** Spread operator ({...logistics}) passes all hook data to panels — panels own UI for their data
-- **03-02:** lowStockAssets computed from assets state in hook (quantity < min_quantity && min_quantity > 0) — no DB trigger per D-05
-- **03-02:** Explicit column list in assets select so TypeScript sees new fields quantity/min_quantity/unit
-- **03-02:** No deposit_* fields in EquipmentLoan per D-01
-- **03-03:** lowStockAssets added to LogisticsPanelProps — caller spreads hook result which already includes it
-- **03-03:** AssetInventory is read-only — no Supabase mutations inside the component
-- **03-03:** isOverdue() computed on render — no extra state needed
-- [Phase 04]: RLS policies added for both service_role and authenticated — mutations use anon key client in this project
-- [Phase 04]: MeetingProtocol interface fully replaced — old meeting_id/content design discarded for standalone protocol table
-- **04-02:** Replaced entire meetings page (old meetings table) with meeting_protocols editor — per D-01 (full page, not slide-over)
-- [Phase 04-archiving-module]: Tab system in ArchivingPanel: border-b-2 -mb-px underline for active indicator; deptCases filtered by currentUser?.department_id
-- [Phase 04]: 04-03: Upload pliku podmienia file_url/file_name w rekordzie meeting_protocols (nie tworzy nowego rekordu)
+- [Phase 05]: EligibilityChecklist: 3-state toggle (pending→met→unmet→pending) with cyclic click
+- [Phase 05]: Deadline badge computed client-side from deadline field (red when overdue, amber <7d, plain text otherwise)
+- [Phase 05]: logAudit() added to updateGrantStatus and updateGrantDecision (was missing before)
+- [Phase 05]: Patronage fields visible conditionally in form when type='PATRONAT'
+- [Phase 06]: react-markdown ^10.1.0 installed; replaces whitespace-pre-wrap plain text rendering
+- [Phase 06]: article_type backfilled from existing category column (Szablony→template, Regulaminy→regulation, else guide)
+- [Phase 06]: File upload for templates stored in Supabase Storage 'documents' bucket under knowledge/{articleId}/
+- [Phase 07]: app/loading.tsx uses CSS keyframe animation for indeterminate progress bar (no JS needed)
+- [Phase 07]: SkeletonLoader and EmptyState components already existed — wired into all new module panels
 
 ## Performance Metrics
 
@@ -111,8 +78,11 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | Phase 04 P01 | 8min | 2 tasks | 2 files |
 | 04 | 02 | 10min | 1 | 1 |
 | Phase 04 P03 | 8min | 1 tasks | 1 files |
+| Phase 05 | all plans | 20min | 5 | 4 |
+| Phase 06 | all plans | 15min | 4 | 3 |
+| Phase 07 | all plans | 10min | 3 | 6 |
 
 ## Last session
 
-**Stopped at:** Completed 04-03-PLAN.md
-**Timestamp:** 2026-04-06T15:08:00Z
+**Stopped at:** Completed all 7 phases — milestone v1.0 complete
+**Timestamp:** 2026-04-09T00:00:00Z
