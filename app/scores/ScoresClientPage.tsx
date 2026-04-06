@@ -74,6 +74,12 @@ export default function ScoresClientPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
 
+    // Client-side role guard
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user?.email) { router.replace('/login'); return }
+    const { data: me } = await supabase.from('users').select('system_role').eq('email', session.user.email).single()
+    if (!me || me.system_role !== 'superadmin') { router.replace('/'); return }
+
     // Pobierz wszystkich aktywnych Członków (active, admin, superadmin)
     const { data: membersData } = await supabase
       .from('users')

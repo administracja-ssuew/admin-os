@@ -1,23 +1,7 @@
-// Server Component — auth guard runs before any HTML is sent to the browser.
-import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '../../lib/supabase-server'
+// Auth guard moved to client component (ScoresClientPage) to avoid RLS
+// issues with the server-side anon key when reading the users table.
 import ScoresClientPage from './ScoresClientPage'
 
-export default async function ScoresPage() {
-  const supabase = await createSupabaseServerClient()
-
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) redirect('/login')
-
-  const { data: userData } = await supabase
-    .from('users')
-    .select('system_role')
-    .eq('id', session.user.id)
-    .single()
-
-  if (!userData || userData.system_role !== 'superadmin') {
-    redirect('/?toast=access_denied')
-  }
-
+export default function ScoresPage() {
   return <ScoresClientPage />
 }

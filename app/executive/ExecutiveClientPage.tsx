@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import { Shield, Lock, EyeOff, AlertTriangle, Briefcase, ChevronRight, Gavel, Check, FileText, Save, Plus, Loader2, User, Clock } from 'lucide-react'
@@ -8,6 +9,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 
 export default function ExecutiveClientPage() {
+  const router = useRouter()
   const [confidentialCases, setConfidentialCases] = useState<any[]>([])
   const [decisions, setDecisions] = useState<any[]>([])
   const [workspaceNote, setWorkspaceNote] = useState({ id: '', content: '' })
@@ -27,44 +29,50 @@ export default function ExecutiveClientPage() {
   const fetchExecutiveData = async () => {
     setLoading(true)
 
-    // Auth check is handled by the Server Component wrapper — this component
-    // can assume the user is authorized (admin or superadmin).
-    // We still fetch the current user for author attribution in decisions.
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user?.email) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single()
-
-      if (userData) {
-        setCurrentUser(userData)
-
-        // 1. Sprawy poufne (Zarząd)
-        const { data: secretCases } = await supabase
-          .from('cases')
-          .select('*, users(first_name, last_name)')
-          .eq('confidentiality_level', 'board_only')
-          .order('created_at', { ascending: false })
-        if (secretCases) setConfidentialCases(secretCases)
-
-        // 2. Tabela DECYZJI (Uchwały)
-        const { data: decisionsData } = await supabase
-          .from('decisions')
-          .select('*, author:users!decisions_author_id_fkey(first_name, last_name), approver:users!decisions_approver_id_fkey(first_name, last_name)')
-          .order('created_at', { ascending: false })
-        if (decisionsData) setDecisions(decisionsData)
-
-        // 3. Notatnik roboczy
-        const { data: noteData } = await supabase
-          .from('board_notes')
-          .select('*')
-          .limit(1)
-          .single()
-        if (noteData) setWorkspaceNote(noteData)
-      }
+    if (!session?.user?.email) {
+      router.replace('/login')
+      return
     }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', session.user.email)
+      .single()
+
+    // Client-side role guard
+    const allowedRoles = ['admin', 'superadmin']
+    if (!userData || !allowedRoles.includes(userData.system_role)) {
+      toast.error('Brak dostępu do tej strony')
+      router.replace('/')
+      return
+    }
+
+    setCurrentUser(userData)
+
+    // 1. Sprawy poufne (Zarząd)
+    const { data: secretCases } = await supabase
+      .from('cases')
+      .select('*, users(first_name, last_name)')
+      .eq('confidentiality_level', 'board_only')
+      .order('created_at', { ascending: false })
+    if (secretCases) setConfidentialCases(secretCases)
+
+    // 2. Tabela DECYZJI (Uchwały)
+    const { data: decisionsData } = await supabase
+      .from('decisions')
+      .select('*, author:users!decisions_author_id_fkey(first_name, last_name), approver:users!decisions_approver_id_fkey(first_name, last_name)')
+      .order('created_at', { ascending: false })
+    if (decisionsData) setDecisions(decisionsData)
+
+    // 3. Notatnik roboczy
+    const { data: noteData } = await supabase
+      .from('board_notes')
+      .select('*')
+      .limit(1)
+      .single()
+    if (noteData) setWorkspaceNote(noteData)
     setLoading(false)
   }
 
