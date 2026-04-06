@@ -312,7 +312,7 @@ export function ArchivingPanel({
           </h2>
           <div className="space-y-3">
             <Link
-              href="/meetings"
+              href="/cred"
               className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 hover:border-purple-300 dark:hover:border-purple-800 transition-colors group"
             >
               <div className="flex items-center gap-3">
@@ -320,14 +320,14 @@ export function ArchivingPanel({
                   <FileText size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-purple-500 transition-colors">Generator Protokołów</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Przejdź do spotkań Zarządu</p>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-purple-500 transition-colors">CRED</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Cenralny Rejestr Ewidencji Dokumentów</p>
                 </div>
               </div>
               <ExternalLink size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-purple-500" />
             </Link>
             <a
-              href="#"
+              href="https://cra-system.vercel.app/"
               target="_blank"
               className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 hover:border-blue-300 dark:hover:border-blue-800 transition-colors group"
             >
@@ -337,7 +337,7 @@ export function ArchivingPanel({
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-blue-500 transition-colors">System CRA</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Rejestr Aktywności (Zewnętrzny)</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Centralny Rejestr Administracyjny</p>
                 </div>
               </div>
               <ExternalLink size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500" />
