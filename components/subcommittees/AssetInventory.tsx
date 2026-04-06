@@ -101,7 +101,9 @@ export default function AssetInventory({ assets, lowStockAssets, onRefetch }: As
                   </td>
                   <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{asset.unit}</td>
                   <td className="py-2 px-3">
-                    {asset.min_quantity > 0 && (asset.quantity ?? 0) < asset.min_quantity ? (
+                    {asset.status === 'maintenance' ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">Awaria</span>
+                    ) : asset.status === 'low_stock' || (asset.min_quantity > 0 && (asset.quantity ?? 0) < asset.min_quantity) ? (
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">Niski stan</span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">OK</span>

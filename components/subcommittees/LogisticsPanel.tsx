@@ -198,8 +198,17 @@ export function LogisticsPanel({
   }
 
   const updateReportStatus = async (id: string, newStatus: string) => {
-    await supabase.from('reports').update({ status: newStatus }).eq('id', id)
+    const { error } = await supabase.from('reports').update({ status: newStatus }).eq('id', id)
+    if (!error) await onRefetch()
+    else toast.error('Błąd zmiany statusu — sprawdź czy migracja RLS została zastosowana')
+  }
+
+  const deleteReport = async (id: string) => {
+    const toastId = toast.loading('Usuwanie...')
+    await supabase.from('reports').delete().eq('id', id)
     await onRefetch()
+    toast.success('Raport usunięty', { id: toastId })
+    setConfirmDelete({ open: false, type: '', id: '' })
   }
 
   // ─── UTILS ─────────────────────────────────────────────────────
@@ -493,7 +502,7 @@ export function LogisticsPanel({
             {reports.map(report => {
               const cfg = reportStatusConfig[report.status] ?? reportStatusConfig.new
               return (
-                <div key={report.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+                <div key={report.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group relative">
                   <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                     report.status === 'requires_action'
                       ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
@@ -537,6 +546,15 @@ export function LogisticsPanel({
                       <span>{new Date(report.submitted_at).toLocaleDateString('pl-PL')}</span>
                     </div>
                   </div>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setConfirmDelete({ open: true, type: 'report', id: report.id })}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 dark:text-slate-600 hover:text-red-500 transition-all shrink-0"
+                      title="Usuń raport"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -888,6 +906,7 @@ export function LogisticsPanel({
         onConfirm={() => {
           if (confirmDelete.type === 'asset') deleteAsset(confirmDelete.id)
           else if (confirmDelete.type === 'loan') deleteLoan(confirmDelete.id)
+          else if (confirmDelete.type === 'report') deleteReport(confirmDelete.id)
         }}
         onCancel={() => setConfirmDelete({ open: false, type: '', id: '' })}
       />

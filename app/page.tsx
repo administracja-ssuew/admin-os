@@ -67,7 +67,14 @@ export default function DashboardPage() {
 
     // Statystyki Zadań (Otwarte)
     const { count: pendingTasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'done')
-    const { data: tasksDueSoon } = await supabase.from('tasks').select('*, users(first_name, last_name)').neq('status', 'done').order('deadline', { ascending: true }).limit(4)
+    const { data: tasksDueSoon } = await supabase
+      .from('tasks')
+      .select('*, users(first_name, last_name)')
+      .eq('priority', 'high')
+      .neq('status', 'done')
+      .neq('is_zarzad', true)
+      .order('deadline', { ascending: true })
+      .limit(4)
 
     // Zadania zamknięte W TYM TYGODNIU
     const startOfWeek = new Date(today)
