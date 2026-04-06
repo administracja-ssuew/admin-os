@@ -44,9 +44,9 @@
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Migracja SQL: rozszerzenie equipment_loans (borrower_phone/org/source) i assets (quantity/min_quantity/unit)
-- [ ] 03-02-PLAN.md — Aktualizacja types/index.ts i useLogisticsData z logiką low stock
-- [ ] 03-03-PLAN.md — UI: formularz umów, overdue badge, AssetInventory, audit logAudit()
+- [x] 03-01-PLAN.md — Migracja SQL: rozszerzenie equipment_loans (borrower_phone/org/source) i assets (quantity/min_quantity/unit)
+- [x] 03-02-PLAN.md — Aktualizacja types/index.ts i useLogisticsData z logiką low stock
+- [x] 03-03-PLAN.md — UI: formularz umów, overdue badge, AssetInventory, audit logAudit()
 
 ---
 
@@ -109,7 +109,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Security Hardening & Stability | 6/6 | Complete   | 2026-04-06 |
 | 2. My-Department Refactor | 4/5 | In Progress|  |
-| 3. Logistics Module | 0/3 | Not started | - |
+| 3. Logistics Module | 3/3 | Complete | 2026-04-06 |
 | 4. Archiving Module | 0/5 | Not started | - |
 | 5. Grants Module | 0/5 | Not started | - |
 | 6. Knowledge Base | 0/4 | Not started | - |

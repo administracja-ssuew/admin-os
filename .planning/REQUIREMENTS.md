@@ -34,10 +34,10 @@
 ### Logistics (Logistyka)
 
 - [x] **LOG-01**: Formularz umowy wypożyczenia zawiera pola: telefon pożyczkobiorcy, organizacja, źródło wypożyczenia, kaucja
-- [ ] **LOG-02**: Przeterminowane wypożyczenia (status "Wypożyczone" po dacie zwrotu) są wizualnie wyróżnione
+- [x] **LOG-02**: Przeterminowane wypożyczenia (status "Wypożyczone" po dacie zwrotu) są wizualnie wyróżnione
 - [x] **LOG-03**: Zasoby biurowe mają pola: ilość, minimalna ilość (próg niskiego stanu), jednostka (szt/ryza/komplet)
 - [x] **LOG-04**: Zasób z ilością poniżej progu jest automatycznie oznaczany statusem `low_stock`
-- [ ] **LOG-05**: Zmiana statusu wypożyczenia jest rejestrowana w audit logu (`logAudit`)
+- [x] **LOG-05**: Zmiana statusu wypożyczenia jest rejestrowana w audit logu (`logAudit`)
 
 ### Archiving (Archiwizacja)
 
