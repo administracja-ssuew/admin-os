@@ -64,7 +64,10 @@ export default function UsersPage() {
       toast.success('Zapisano!', { id: toastId })
       setSelectedUser(null)
       fetchData()
-    } else toast.error('Błąd zapisu', { id: toastId })
+    } else {
+      console.error('Save user error:', error)
+      toast.error('Nie udało się zaktualizować profilu użytkownika', { id: toastId })
+    }
   }
 
   const handleSuspendUser = async (userId: string) => {
@@ -75,7 +78,10 @@ export default function UsersPage() {
       toast.success('Konto zawieszone.', { id: toastId })
       setSelectedUser(null)
       fetchData()
-    } else toast.error('Błąd.', { id: toastId })
+    } else {
+      console.error('Suspend user error:', error)
+      toast.error('Nie udało się zawiesić konta', { id: toastId })
+    }
   }
 
   const openEditor = (user: any) => {

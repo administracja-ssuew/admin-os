@@ -147,19 +147,33 @@ export default function MyDepartmentPage() {
     if (!department) return
     setIsSavingNote(true)
     const { error } = await supabase.from('department_notes').update({ content: workspaceNote, updated_at: new Date().toISOString() }).eq('department_id', department.id)
-    if (!error) toast.success('Przestrzeń robocza zapisana!')
+    if (!error) {
+      toast.success('Przestrzeń robocza zapisana!')
+    } else {
+      console.error('Save note error:', error)
+      toast.error('Nie udało się zapisać notatki')
+    }
     setIsSavingNote(false)
   }
 
   // === LOGIKA: ZADANIA DEPARTAMENTU ===
   const updateDeptTaskStatus = async (taskId: string, newStatus: string) => {
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+    if (error) {
+      console.error('Task status update error:', error)
+      toast.error('Nie udało się zaktualizować statusu zadania')
+    }
     fetchDepartmentData()
   }
 
   const updateTaskAssignee = async (taskId: string, userId: string) => {
-    await supabase.from('tasks').update({ owner_id: userId || null }).eq('id', taskId)
-    toast.success('Zadanie przypisane!')
+    const { error } = await supabase.from('tasks').update({ owner_id: userId || null }).eq('id', taskId)
+    if (!error) {
+      toast.success('Zadanie przypisane!')
+    } else {
+      console.error('Task assignee update error:', error)
+      toast.error('Nie udało się przypisać zadania')
+    }
     fetchDepartmentData()
   }
 
