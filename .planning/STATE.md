@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 02
-current_plan: 2
+current_plan: 3
 status: Executing Phase 02
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-04-06T10:22:47.608Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-04-06T10:32:00Z"
 progress:
   total_phases: 7
   completed_phases: 1
@@ -18,7 +18,7 @@ progress:
 
 **Last updated:** 2026-04-06
 **Current phase:** 02
-**Current plan:** 1
+**Current plan:** 3
 
 ## Project Reference
 
@@ -74,6 +74,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - [Phase 01]: STAB-03: NotificationBell channel hoisted to useEffect outer scope — cleanup returned directly from useEffect so React calls removeChannel on unmount
 - [Phase 02]: dept_type column is nullable — generic departments (no subcommittee) are allowed to have NULL
 - [Phase 02]: Backfill heuristics in migration match page.tsx string fragments exactly (dotacj, logistyk, logitech, archiwizacj, bieżąc) to ensure consistent routing behavior
+- **02-02:** grants_radar queries not filtered by department_id — table is global for entire grants subcommittee (matches existing page.tsx behavior)
+- **02-02:** DeptMember interface kept local to each hook file — simple projection not yet needing canonical type location
+- **02-02:** Promise.all used for all parallel queries per REF-01 decision
 
 ## Performance Metrics
 
@@ -85,8 +88,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | 01 | 04 | 2min | 1 | 1 |
 | 01 | 06 | 15min | 5 | 5 |
 | Phase 02 P01 | 2min | 2 tasks | 2 files |
+| 02 | 02 | 8min | 2 | 3 |
 
 ## Last session
 
-**Stopped at:** Completed 02-01-PLAN.md
-**Timestamp:** 2026-04-06T01:53:00Z
+**Stopped at:** Completed 02-02-PLAN.md
+**Timestamp:** 2026-04-06T10:32:00Z
