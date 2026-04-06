@@ -69,7 +69,7 @@ export default function DashboardPage() {
     const { count: pendingTasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'done')
     const { data: tasksDueSoonRaw } = await supabase
       .from('tasks')
-      .select('*, users(first_name, last_name)')
+      .select('*, owner:users!tasks_owner_id_fkey(first_name, last_name)')
       .eq('priority', 'high')
       .neq('status', 'done')
       .order('deadline', { ascending: true })
@@ -237,8 +237,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {urgentTasks.length > 0 ? urgentTasks.map(task => {
                     const isOverdue = task.deadline && new Date(task.deadline) < new Date()
-                    // Supabase may return join as array or object — normalize
-                    const assignee = Array.isArray(task.users) ? task.users[0] : task.users
+                    const assignee = (task as any).owner ?? null
                     return (
                       <Link key={task.id} href="/tasks" className="block p-4 rounded-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
                         <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-blue-500 transition-colors mb-2">{task.title}</h3>
