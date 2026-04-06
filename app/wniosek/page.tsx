@@ -98,7 +98,7 @@ function SuccessView({ generatedNumber, resetForm }: { generatedNumber: string; 
 export default function PublicIntakePage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()))
-  const [events, setEvents] = useState<{ id: string; title: string; date: string; time?: string }[]>([])
+  const [events, setEvents] = useState<{ id: string; title: string; date: string; time?: string; type?: 'meeting' | 'task' }[]>([])
   const [calendarLoading, setCalendarLoading] = useState(true)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -123,14 +123,25 @@ export default function PublicIntakePage() {
     setCalendarLoading(true)
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-    const { data: protocols } = await supabase
-      .from('meeting_protocols')
-      .select('id, title, date')
-      .gte('date', toDateStr(startOfMonth))
-      .lte('date', toDateStr(endOfMonth))
-    if (protocols) {
-      setEvents(protocols.map(m => ({ id: m.id, title: m.title, date: m.date })))
-    }
+    const [protocolsRes, tasksRes] = await Promise.all([
+      supabase
+        .from('meeting_protocols')
+        .select('id, title, date')
+        .gte('date', toDateStr(startOfMonth))
+        .lte('date', toDateStr(endOfMonth)),
+      supabase
+        .from('tasks')
+        .select('id, title, deadline')
+        .not('deadline', 'is', null)
+        .gte('deadline', toDateStr(startOfMonth))
+        .lte('deadline', toDateStr(endOfMonth))
+        .neq('status', 'done'),
+    ])
+    const combined = [
+      ...(protocolsRes.data ?? []).map(m => ({ id: `m-${m.id}`, title: m.title, date: m.date, type: 'meeting' as const })),
+      ...(tasksRes.data ?? []).map(t => ({ id: `t-${t.id}`, title: t.title, date: t.deadline, type: 'task' as const })),
+    ]
+    setEvents(combined)
     setCalendarLoading(false)
   }, [currentDate])
 
@@ -315,10 +326,10 @@ export default function PublicIntakePage() {
                     isToday ? 'bg-blue-600 text-white shadow-md' : isSelected ? 'text-blue-700 dark:text-blue-400 font-extrabold' : 'text-gray-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                   }`}>{day}</span>
                   <div className="absolute bottom-1.5 left-2 flex flex-wrap gap-0.5">
-                    {dayEvents.slice(0, 3).map((_, i) => (
-                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                    {dayEvents.slice(0, 4).map((ev, i) => (
+                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${ev.type === 'task' ? 'bg-green-500' : 'bg-orange-500'}`} />
                     ))}
-                    {dayEvents.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-slate-500" />}
+                    {dayEvents.length > 4 && <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-slate-500" />}
                   </div>
                 </div>
               )
@@ -330,21 +341,22 @@ export default function PublicIntakePage() {
             {selectedDayEvents.length > 0 ? (
               <div>
                 <p className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <CalendarDays size={11} /> Posiedzenia — {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}
+                  <CalendarDays size={11} /> {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}
                 </p>
                 <div className="space-y-1">
                   {selectedDayEvents.map(ev => (
                     <div key={ev.id} className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.type === 'task' ? 'bg-green-500' : 'bg-orange-500'}`} />
                       <span className="text-xs font-bold text-gray-700 dark:text-slate-200 truncate">{ev.title}</span>
+                      {ev.type === 'task' && <span className="text-[9px] text-green-600 dark:text-green-400 font-bold shrink-0">DDL</span>}
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
               <p className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-orange-400/60" />
-                Brak posiedzeń w tym dniu
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-slate-600" />
+                Brak wydarzeń w tym dniu
               </p>
             )}
           </div>
@@ -353,7 +365,11 @@ export default function PublicIntakePage() {
           <div className="px-5 py-2.5 border-t border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">
               <div className="w-2 h-2 rounded-full bg-orange-500" />
-              Posiedzenie komisji
+              Posiedzenie
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              Deadline zadania
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">
               <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
