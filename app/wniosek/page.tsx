@@ -116,10 +116,6 @@ export default function PublicIntakePage() {
 
     setIsSubmitting(true)
 
-    const currentYear = new Date().getFullYear()
-    const randomNum = Math.floor(1000 + Math.random() * 9000)
-    const newCaseNumber = `WNI/${currentYear}/${randomNum}`
-
     const contactLine = formData.contact_phone
       ? `[E-mail: ${formData.contact_email} | Tel: ${formData.contact_phone}]`
       : `[E-mail: ${formData.contact_email}]`
@@ -133,29 +129,29 @@ export default function PublicIntakePage() {
       added_at: f.added_at,
     }))
 
-    const { error } = await supabase.from('cases').insert([{
+    // case_number intentionally omitted — DB trigger sets it from the sequence
+    const { data: insertedCase, error } = await supabase.from('cases').insert([{
       id: pendingCaseId,
       title: formData.title,
       description: fullDescription,
       case_type: formData.case_type,
-      case_number: newCaseNumber,
       source: 'Formularz Zewnętrzny',
       status: 'new',
       confidentiality_level: 'internal',
       attachments: attachments.length > 0 ? attachments : null,
-    }])
+    }]).select('case_number').single()
 
-    if (!error) {
-      setGeneratedNumber(newCaseNumber)
+    if (!error && insertedCase) {
+      setGeneratedNumber(insertedCase.case_number)
       setIsSuccess(true)
       // Powiadomienie do adminów + potwierdzenie do wnioskodawcy (fire-and-forget Server Action — secret stays server-side)
       notifyExternalSubmission({
-        caseNumber: newCaseNumber,
+        caseNumber: insertedCase.case_number,
         caseTitle: formData.title,
         caseType: formData.case_type,
         contactEmail: formData.contact_email,
       }).catch(err => console.error('External notification failed:', err))
-    } else {
+    } else if (error) {
       setErrorMsg('Wystąpił problem z połączeniem. Spróbuj ponownie później.')
       console.error(error)
     }
