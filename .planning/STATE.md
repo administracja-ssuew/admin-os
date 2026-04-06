@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 01 — security-hardening-stability
-current_plan: 03 (01-02 complete)
+current_plan: 04 (01-03 complete)
 status: in_progress
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-04-06T01:45:04.568Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-04-06T01:51:00Z"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
 
 **Last updated:** 2026-04-06
 **Current phase:** 01 — security-hardening-stability
-**Current plan:** 03 (01-02 complete)
+**Current plan:** 04 (01-03 complete)
 
 ## Project Reference
 
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 | Phase | Status |
 |-------|--------|
-| Phase 1: Security Hardening & Stability | In Progress (01-02 done) |
+| Phase 1: Security Hardening & Stability | In Progress (01-03 done) |
 | Phase 2: My-Department Refactor | Not started |
 | Phase 3: Logistics Module | Not started |
 | Phase 4: Archiving Module | Not started |
@@ -66,6 +66,8 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - **01-01:** Split supabase clients: `supabaseService` (DB writes) and `supabaseAnon` (token verification)
 - [Phase 01]: Used Server Action to keep EXTERNAL_NOTIFICATIONS_SECRET out of browser JS bundle — 'use server' directive ensures secret read only on server
 - [Phase 01]: Created dedicated /api/notifications/external endpoint isolated from main endpoint — enables Plan 03 to add session auth to main endpoint without breaking /wniosek form
+- **01-03:** POST /api/notifications now requires valid Bearer session token — missing or invalid token returns 401 before any DB operation (closes SEC-02)
+- **01-03:** lib/notify.ts updated to early-return (with error log) when no session token, instead of silently omitting Authorization header
 
 ## Performance Metrics
 
@@ -73,8 +75,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 |-------|------|----------|-------|-------|
 | 01 | 01 | 7min | 3 | 3 |
 | 01 | 02 | 2min | 2 | 4 |
+| 01 | 03 | 3min | 1 | 2 |
 
 ## Last session
 
-**Stopped at:** Completed 01-02-PLAN.md
-**Timestamp:** 2026-04-06T01:38:37Z
+**Stopped at:** Completed 01-03-PLAN.md
+**Timestamp:** 2026-04-06T01:51:00Z

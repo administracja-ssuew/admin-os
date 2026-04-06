@@ -10,7 +10,7 @@
 ### Security (Bezpieczeństwo)
 
 - [ ] **SEC-01**: Trasy `/scores` i `/executive` są chronione server-side (nie tylko client-side AuthGuard)
-- [ ] **SEC-02**: Endpoint `/api/notifications` wymaga uwierzytelnionego Bearer tokenu (sesji użytkownika)
+- [x] **SEC-02**: Endpoint `/api/notifications` wymaga uwierzytelnionego Bearer tokenu (sesji użytkownika)
 - [x] **SEC-03**: Publiczne przesyłanie formularza `/wniosek` korzysta z dedykowanego endpointu `/api/notifications/external` z własnym sekretem (nie z sesją użytkownika)
 - [ ] **SEC-04**: Polityka RLS na tabeli `notifications` ogranicza INSERT wyłącznie do service role
 - [x] **SEC-05**: `CRON_SECRET` jest wymagany (nie opcjonalny) dla endpointu `deadline-check`
@@ -116,7 +116,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 1 | Complete |
 | SEC-04 | Phase 1 | Pending |
 | SEC-05 | Phase 1 | Complete |
