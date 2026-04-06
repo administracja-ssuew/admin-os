@@ -33,10 +33,10 @@
 
 ### Logistics (Logistyka)
 
-- [ ] **LOG-01**: Formularz umowy wypożyczenia zawiera pola: telefon pożyczkobiorcy, organizacja, źródło wypożyczenia, kaucja
+- [x] **LOG-01**: Formularz umowy wypożyczenia zawiera pola: telefon pożyczkobiorcy, organizacja, źródło wypożyczenia, kaucja
 - [ ] **LOG-02**: Przeterminowane wypożyczenia (status "Wypożyczone" po dacie zwrotu) są wizualnie wyróżnione
-- [ ] **LOG-03**: Zasoby biurowe mają pola: ilość, minimalna ilość (próg niskiego stanu), jednostka (szt/ryza/komplet)
-- [ ] **LOG-04**: Zasób z ilością poniżej progu jest automatycznie oznaczany statusem `low_stock`
+- [x] **LOG-03**: Zasoby biurowe mają pola: ilość, minimalna ilość (próg niskiego stanu), jednostka (szt/ryza/komplet)
+- [x] **LOG-04**: Zasób z ilością poniżej progu jest automatycznie oznaczany statusem `low_stock`
 - [ ] **LOG-05**: Zmiana statusu wypożyczenia jest rejestrowana w audit logu (`logAudit`)
 
 ### Archiving (Archiwizacja)
@@ -130,10 +130,10 @@
 | REF-03 | Phase 2 | Complete |
 | REF-04 | Phase 2 | Complete |
 | REF-05 | Phase 2 | Complete |
-| LOG-01 | Phase 3 | Pending |
+| LOG-01 | Phase 3 | Complete |
 | LOG-02 | Phase 3 | Pending |
-| LOG-03 | Phase 3 | Pending |
-| LOG-04 | Phase 3 | Pending |
+| LOG-03 | Phase 3 | Complete |
+| LOG-04 | Phase 3 | Complete |
 | LOG-05 | Phase 3 | Pending |
 | ARCH-01 | Phase 4 | Pending |
 | ARCH-02 | Phase 4 | Pending |

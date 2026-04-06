@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 02
-current_plan: 5
-status: Executing Phase 02
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-04-04T00:15:00Z"
+current_phase: 03
+current_plan: 2
+status: Executing Phase 03
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-04-06T11:08:38Z"
 progress:
   total_phases: 7
   completed_phases: 1
@@ -16,9 +16,9 @@ progress:
 
 # Project State
 
-**Last updated:** 2026-04-04
-**Current phase:** 02
-**Current plan:** 5
+**Last updated:** 2026-04-06
+**Current phase:** 03
+**Current plan:** 2
 
 ## Project Reference
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Jeden centralny panel, w którym każdy członek samorządu wie co ma zrobić, a każdy zasób — umowa, wniosek, grant — jest zawsze pod ręką i śledzony.
 **Milestone:** v1.0 — Release Ready
-**Current focus:** Phase 02 — my-department-refactor
+**Current focus:** Phase 03 — logistics-module
 
 ## Phase Status
 
@@ -34,7 +34,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 |-------|--------|
 | Phase 1: Security Hardening & Stability | Complete (all 6 plans done) |
 | Phase 2: My-Department Refactor | Not started |
-| Phase 3: Logistics Module | Not started |
+| Phase 3: Logistics Module | In Progress (2/N plans done) |
 | Phase 4: Archiving Module | Not started |
 | Phase 5: Grants Module | Not started |
 | Phase 6: Knowledge Base | Not started |
@@ -81,6 +81,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - **02-03:** Petition status 'Zaakceptowane' from page.tsx corrected to 'Rozpatrzone' to match PetitionStatus type definition
 - **02-04:** All 3 hooks called unconditionally — hooks receive undefined departmentId when dept_type doesn't match, handle it internally with early return
 - **02-04:** Spread operator ({...logistics}) passes all hook data to panels — panels own UI for their data
+- **03-02:** lowStockAssets computed from assets state in hook (quantity < min_quantity && min_quantity > 0) — no DB trigger per D-05
+- **03-02:** Explicit column list in assets select so TypeScript sees new fields quantity/min_quantity/unit
+- **03-02:** No deposit_* fields in EquipmentLoan per D-01
 
 ## Performance Metrics
 
@@ -95,8 +98,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | 02 | 02 | 8min | 2 | 3 |
 | 02 | 03 | 25min | 2 | 3 |
 | 02 | 04 | 15min | 1 | 1 |
+| 03 | 02 | 10min | 2 | 2 |
 
 ## Last session
 
-**Stopped at:** Completed 02-04-PLAN.md
-**Timestamp:** 2026-04-04T00:15:00Z
+**Stopped at:** Completed 03-02-PLAN.md
+**Timestamp:** 2026-04-06T11:08:38Z
