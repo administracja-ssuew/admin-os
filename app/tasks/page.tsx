@@ -185,7 +185,8 @@ export default function TasksPage() {
     const { error } = await supabase.from('tasks').insert([{
       title: formData.title, description: formData.description, owner_id: formData.owner_id || null, department_id: formData.department_id || null,
       project_id: formData.project_id || null, case_id: formData.case_id || null, deadline: formData.deadline || null, priority: formData.priority,
-      status: formData.status, checklists: [], attachments: [], completion_percentage: 0
+      status: formData.status, checklists: [], attachments: [], completion_percentage: 0,
+      is_zarzad: boardMode === 'zarzad',
     }])
     if (!error) {
       setFormData({ title: '', description: '', owner_id: '', department_id: '', project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' }); setIsModalOpen(false); fetchData(); toast.success('Zadanie wrzucone na tablicę!')
@@ -206,22 +207,20 @@ export default function TasksPage() {
     setIsSubmitting(false)
   }
 
-  // Zbiór ID adminów — do filtrowania Tablicy Zarządu
-  const adminUserIds = new Set(
-    users.filter(u => u.system_role === 'admin' || u.system_role === 'superadmin').map(u => u.id)
-  )
-
   // --- INTELIGENTNE FILTROWANIE WIDOCZNOŚCI ---
   const filteredTasks = tasks.filter((t: any) => {
     const matchesSearch = (t.title || '').toLowerCase().includes(searchTerm.toLowerCase())
     if (!matchesSearch) return false
 
-    // Tryb Tablicy Zarządu — tylko zadania adminów
+    // Tryb Tablicy Zarządu — tylko zadania oznaczone flagą is_zarzad
     if (boardMode === 'zarzad') {
-      return t.owner_id && adminUserIds.has(t.owner_id)
+      return t.is_zarzad === true
     }
 
-    // Zarząd widzi absolutnie wszystko
+    // W widoku ogólnym zadania Zarządu są ukryte
+    if (t.is_zarzad) return false
+
+    // Zarząd widzi absolutnie wszystko (poza tablicą Zarządu)
     if (isAdmin) return true
 
     // Zwykły członek widzi tylko:
@@ -232,7 +231,7 @@ export default function TasksPage() {
     return isMine || isMyDept || isGlobal
   })
 
-  const zarzadTaskCount = tasks.filter(t => t.owner_id && adminUserIds.has(t.owner_id)).length
+  const zarzadTaskCount = tasks.filter(t => t.is_zarzad).length
   
   const columns = [
     { id: 'to_do', title: 'Do Zrobienia', color: 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50', textColor: 'text-slate-600 dark:text-slate-400' },

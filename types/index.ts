@@ -86,6 +86,7 @@ export interface Task {
   checklists: ChecklistItem[]
   attachments: TaskAttachment[]
   completion_percentage: number
+  is_zarzad: boolean
   created_at: string
   updated_at?: string
   // relacje
