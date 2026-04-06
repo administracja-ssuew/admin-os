@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import Sidebar from '../components/Sidebar'
@@ -9,9 +10,18 @@ import Link from 'next/link'
 import type { Case, Task } from '../types'
 import SkeletonLoader from '../components/SkeletonLoader'
 import EmptyState from '../components/EmptyState'
+import toast from 'react-hot-toast'
 
 export default function DashboardPage() {
   const { user: currentUser } = useCurrentUser()
+  const searchParams = useSearchParams()
+
+  // Show access denied toast when redirected from a protected route
+  useEffect(() => {
+    if (searchParams.get('toast') === 'access_denied') {
+      toast.error('Brak dostępu do tej strony')
+    }
+  }, [searchParams])
 
   const [stats, setStats] = useState({
     activeCases: 0,
