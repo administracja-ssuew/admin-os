@@ -72,7 +72,7 @@ Each task was committed atomically:
 1. **Task 1: Utwórz useLogisticsData i useArchivingData** - `5ab1997` (feat)
 2. **Task 2: Utwórz useGrantsData** - `b01b4b4` (feat)
 
-**Plan metadata:** `[docs commit hash]` (docs: complete plan)
+**Plan metadata:** `739c9fb` (docs: complete plan)
 
 ## Files Created/Modified
 - `hooks/useLogisticsData.ts` - Supabase data hook for logistics subcommittee (assets, equipment_loans, reports, members) — 72 lines
