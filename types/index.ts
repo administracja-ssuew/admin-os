@@ -302,12 +302,6 @@ export interface Petition {
   created_at: string
 }
 
-export interface EligibilityCriterion {
-  id: string
-  grant_id: string
-  description: string
-  is_met: boolean | null
-}
 
 export interface MeetingProtocol {
   id: string

@@ -169,7 +169,7 @@ export function GrantsPanel({
   const updateGrantStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase.from('grants_radar').update({ status: newStatus }).eq('id', id)
     if (!error && currentUser) {
-      await logAudit({ userId: currentUser.id, action: 'UPDATE', entityType: 'grant', entityId: id, details: { field: 'status', value: newStatus } })
+      await logAudit({ userId: currentUser.id, action: 'UPDATE', entityType: 'grant', entityId: id, newValue: { status: newStatus } })
     }
     await onRefetch()
     if (selectedGrant?.id === id) {
@@ -180,7 +180,7 @@ export function GrantsPanel({
   const updateGrantDecision = async (id: string, newDecision: string) => {
     const { error } = await supabase.from('grants_radar').update({ decision: newDecision }).eq('id', id)
     if (!error && currentUser) {
-      await logAudit({ userId: currentUser.id, action: 'UPDATE', entityType: 'grant', entityId: id, details: { field: 'decision', value: newDecision } })
+      await logAudit({ userId: currentUser.id, action: 'UPDATE', entityType: 'grant', entityId: id, newValue: { decision: newDecision } })
     }
     await onRefetch()
     if (selectedGrant?.id === id) {
