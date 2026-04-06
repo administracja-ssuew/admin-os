@@ -517,7 +517,7 @@ export default function PublicIntakePage() {
                       </label>
                       <FileUpload
                         bucketPath={`cases/${pendingCaseId}`}
-                        onUploadComplete={files => setUploadedFiles(files)}
+                        onUploadComplete={files => setUploadedFiles(Array.isArray(files) ? files : [files])}
                         accept="application/pdf,image/png,image/jpeg"
                         maxSizeMB={10}
                         maxFiles={3}
