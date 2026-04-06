@@ -266,10 +266,13 @@ export interface Grant {
 
 export type ArchiveFolderStatus = 'W przygotowaniu' | 'Aktywna' | 'Zamknięta'
 
+export type FolderType = 'general' | 'project_report'
+
 export interface ArchiveFolder {
   id: string
   title: string
   status: ArchiveFolderStatus
+  folder_type: FolderType
   notes: string | null
   attachments: CaseAttachment[]
   created_at: string
@@ -296,8 +299,16 @@ export interface EligibilityCriterion {
 
 export interface MeetingProtocol {
   id: string
-  meeting_id: string
-  content: string
-  status: ProtocolStatus
+  title: string
+  date: string                    // format: YYYY-MM-DD
+  participants: string
+  agenda: string
+  findings: string
+  actions: string
+  protocol_status: ProtocolStatus
+  file_url: string | null
+  file_name: string | null
+  created_by: string | null
   created_at: string
+  updated_at: string
 }
