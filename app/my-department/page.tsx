@@ -105,9 +105,15 @@ export default function MyDepartmentPage() {
           const { data: tasks } = await tasksQuery
           if (tasks) setDeptTasks(tasks)
 
-          const { data: note } = await supabase.from('department_notes').select('content').eq('department_id', userDept.id).single()
+          const { data: note } = await supabase
+            .from('department_notes')
+            .upsert(
+              { department_id: userDept.id, content: '' },
+              { onConflict: 'department_id', ignoreDuplicates: true }
+            )
+            .select('content')
+            .single()
           if (note) setWorkspaceNote(note.content)
-          else await supabase.from('department_notes').insert([{ department_id: userDept.id, content: '' }])
 
           const deptName = userDept.name.toLowerCase()
 
