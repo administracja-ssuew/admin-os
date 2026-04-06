@@ -41,12 +41,12 @@
 **Requirements:** LOG-01, LOG-02, LOG-03, LOG-04, LOG-05
 **Why now:** Logistics has the most straightforward additions — schema columns and UI wiring on an already-built table. No new tables required. This is a good first feature phase to validate the new component structure from Phase 2 at low risk before the more complex Archiving and Grants modules.
 
-#### Plans
-1. Extend `equipment_loans` schema — migration adding `borrower_phone`, `borrower_org`, `loan_source`, `deposit_required` (boolean), `deposit_amount` (numeric) columns; include RLS policy check (LOG-01)
-2. Extend `assets` schema — migration adding `quantity` (integer), `min_quantity` (integer), `unit` (text: szt/ryza/komplet) columns; add computed or trigger-driven `low_stock` status flag when quantity falls below min_quantity (LOG-03, LOG-04)
-3. Loan register UI — update the loan form in `LogisticsPanel` to include the new borrower and deposit fields; wire `EquipmentLoan` TypeScript interface throughout (LOG-01)
-4. Overdue detection UI — add a date comparison in `LoanRegister` to highlight rows where status is "Wypożyczone" and `return_date` is in the past; use a visual indicator (e.g. red badge) without requiring a schema change (LOG-02)
-5. Asset inventory UI + audit — build `AssetInventory` component in the Logistics panel for consumables with quantity, unit, and low-stock badge; call `logAudit()` on every loan status toggle (LOG-03, LOG-04, LOG-05)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Migracja SQL: rozszerzenie equipment_loans (borrower_phone/org/source) i assets (quantity/min_quantity/unit)
+- [ ] 03-02-PLAN.md — Aktualizacja types/index.ts i useLogisticsData z logiką low stock
+- [ ] 03-03-PLAN.md — UI: formularz umów, overdue badge, AssetInventory, audit logAudit()
 
 ---
 
@@ -109,7 +109,7 @@
 |-------|----------------|--------|-----------|
 | 1. Security Hardening & Stability | 6/6 | Complete   | 2026-04-06 |
 | 2. My-Department Refactor | 4/5 | In Progress|  |
-| 3. Logistics Module | 0/5 | Not started | - |
+| 3. Logistics Module | 0/3 | Not started | - |
 | 4. Archiving Module | 0/5 | Not started | - |
 | 5. Grants Module | 0/5 | Not started | - |
 | 6. Knowledge Base | 0/4 | Not started | - |
