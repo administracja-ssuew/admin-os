@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 01 — security-hardening-stability
-current_plan: 04 (01-03 complete)
+current_plan: 05 (01-04 complete)
 status: in_progress
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-04-06T01:51:00Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-04-06T01:53:00Z"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
 
 **Last updated:** 2026-04-06
 **Current phase:** 01 — security-hardening-stability
-**Current plan:** 04 (01-03 complete)
+**Current plan:** 05 (01-04 complete)
 
 ## Project Reference
 
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 | Phase | Status |
 |-------|--------|
-| Phase 1: Security Hardening & Stability | In Progress (01-03 done) |
+| Phase 1: Security Hardening & Stability | In Progress (01-04 done) |
 | Phase 2: My-Department Refactor | Not started |
 | Phase 3: Logistics Module | Not started |
 | Phase 4: Archiving Module | Not started |
@@ -68,6 +68,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - [Phase 01]: Created dedicated /api/notifications/external endpoint isolated from main endpoint — enables Plan 03 to add session auth to main endpoint without breaking /wniosek form
 - **01-03:** POST /api/notifications now requires valid Bearer session token — missing or invalid token returns 401 before any DB operation (closes SEC-02)
 - **01-03:** lib/notify.ts updated to early-return (with error log) when no session token, instead of silently omitting Authorization header
+- **01-04:** WITH CHECK (false) on notifications INSERT policy blocks all JWT-auth users; service role key bypasses RLS entirely — idiomatic Supabase pattern for API-only writes (closes SEC-04)
 
 ## Performance Metrics
 
@@ -76,8 +77,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | 01 | 01 | 7min | 3 | 3 |
 | 01 | 02 | 2min | 2 | 4 |
 | 01 | 03 | 3min | 1 | 2 |
+| 01 | 04 | 2min | 1 | 1 |
 
 ## Last session
 
-**Stopped at:** Completed 01-03-PLAN.md
-**Timestamp:** 2026-04-06T01:51:00Z
+**Stopped at:** Completed 01-04-PLAN.md
+**Timestamp:** 2026-04-06T01:53:00Z
