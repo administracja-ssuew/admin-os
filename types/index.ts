@@ -244,6 +244,11 @@ export type GrantStatus = 'RADAR' | 'W TOKU' | 'ARCHIWUM'
 export type GrantDecision = 'OCZEKUJE' | 'ZAAKCEPTOWANE' | 'ODRZUCONE'
 export type GrantType = 'DOTACJA' | 'PATRONAT'
 
+export interface EligibilityCriterion {
+  label: string
+  state: 'met' | 'unmet' | 'pending'
+}
+
 export interface Grant {
   id: string
   signature: string | null
@@ -259,6 +264,13 @@ export interface Grant {
   drive_link: string | null
   description: string | null
   notes: string | null
+  eligibility_criteria: EligibilityCriterion[]
+  application_url: string | null
+  applied_at: string | null
+  decision_expected_at: string | null
+  patronage_event_name: string | null
+  patronage_event_date: string | null
+  patron_identity: string | null
   created_at: string
   // relacje
   owner?: { first_name: string; last_name: string } | null

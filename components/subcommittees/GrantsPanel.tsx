@@ -4,17 +4,71 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import ConfirmDialog from '../ConfirmDialog'
+import { EligibilityChecklist } from './grants/EligibilityChecklist'
 import toast from 'react-hot-toast'
 import {
   Plus, Loader2, Trash2, X, Search, PiggyBank, ExternalLink,
 } from 'lucide-react'
-import type { Grant, AppUser } from '../../types'
+import type { Grant, AppUser, EligibilityCriterion } from '../../types'
 
 // ─── TYPY LOKALNE ────────────────────────────────────────────────────────────
 interface DeptMember {
   id: string
   first_name: string
   last_name: string
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function getDeadlineBadge(deadline: string | null): React.ReactNode {
+  if (!deadline) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(deadline)
+  const diff = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diff < 0) {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+        po terminie
+      </span>
+    )
+  }
+  if (diff === 0) {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+        dziś
+      </span>
+    )
+  }
+  if (diff <= 7) {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+        {diff} {diff === 1 ? 'dzień' : 'dni'}
+      </span>
+    )
+  }
+  return (
+    <span className="text-xs text-slate-600 dark:text-slate-400">
+      {deadline}
+    </span>
+  )
+}
+
+function getEligibilitySummary(criteria: EligibilityCriterion[]): React.ReactNode {
+  if (!criteria || criteria.length === 0) return null
+  const met = criteria.filter(c => c.state === 'met').length
+  const total = criteria.length
+  const allMet = met === total
+  return (
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+      allMet
+        ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'
+        : met === 0
+        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+        : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+    }`}>
+      {met}/{total} kryteriów
+    </span>
+  )
 }
 
 // ─── PROPS ───────────────────────────────────────────────────────────────────
@@ -51,6 +105,12 @@ export function GrantsPanel({
     drive_link: '',
     description: '',
     notes: '',
+    application_url: '',
+    applied_at: '',
+    decision_expected_at: '',
+    patronage_event_name: '',
+    patronage_event_date: '',
+    patron_identity: '',
   })
 
   // Stany: szuflada grantu
@@ -77,6 +137,13 @@ export function GrantsPanel({
       ...grantForm,
       max_amount: grantForm.max_amount ? parseFloat(grantForm.max_amount) : null,
       owner_id: grantForm.owner_id || null,
+      applied_at: grantForm.applied_at || null,
+      decision_expected_at: grantForm.decision_expected_at || null,
+      patronage_event_date: grantForm.patronage_event_date || null,
+      patronage_event_name: grantForm.patronage_event_name || null,
+      patron_identity: grantForm.patron_identity || null,
+      application_url: grantForm.application_url || null,
+      eligibility_criteria: [],
     }])
     if (!error) {
       toast.success('Dodano do radaru!')
@@ -85,14 +152,21 @@ export function GrantsPanel({
         signature: '', name: '', organizer: '', type: 'DOTACJA', max_amount: '',
         scope: 'Polska', deadline: '', status: 'RADAR', decision: 'OCZEKUJE',
         owner_id: '', drive_link: '', description: '', notes: '',
+        application_url: '', applied_at: '', decision_expected_at: '',
+        patronage_event_name: '', patronage_event_date: '', patron_identity: '',
       })
       await onRefetch()
+    } else {
+      toast.error('Nie udało się dodać pozycji')
     }
     setIsSubmittingGrant(false)
   }
 
   const updateGrantStatus = async (id: string, newStatus: string) => {
-    await supabase.from('grants_radar').update({ status: newStatus }).eq('id', id)
+    const { error } = await supabase.from('grants_radar').update({ status: newStatus }).eq('id', id)
+    if (!error && currentUser) {
+      await logAudit({ userId: currentUser.id, action: 'UPDATE', entityType: 'grant', entityId: id, details: { field: 'status', value: newStatus } })
+    }
     await onRefetch()
     if (selectedGrant?.id === id) {
       setSelectedGrant({ ...selectedGrant, status: newStatus as Grant['status'] })
@@ -100,7 +174,10 @@ export function GrantsPanel({
   }
 
   const updateGrantDecision = async (id: string, newDecision: string) => {
-    await supabase.from('grants_radar').update({ decision: newDecision }).eq('id', id)
+    const { error } = await supabase.from('grants_radar').update({ decision: newDecision }).eq('id', id)
+    if (!error && currentUser) {
+      await logAudit({ userId: currentUser.id, action: 'UPDATE', entityType: 'grant', entityId: id, details: { field: 'decision', value: newDecision } })
+    }
     await onRefetch()
     if (selectedGrant?.id === id) {
       setSelectedGrant({ ...selectedGrant, decision: newDecision as Grant['decision'] })
@@ -205,13 +282,14 @@ export function GrantsPanel({
           </div>
         </div>
         <div className="flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full text-left min-w-[800px]">
+          <table className="w-full text-left min-w-[900px]">
             <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 backdrop-blur-sm">
               <tr>
                 <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">ID</th>
                 <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nazwa / Org</th>
                 <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Typ</th>
                 <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center">Do Końca</th>
+                <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Kryteria</th>
                 <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Status</th>
                 <th className="px-4 py-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Decyzja</th>
               </tr>
@@ -237,8 +315,11 @@ export function GrantsPanel({
                         : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'
                     }`}>{g.type}</span>
                   </td>
-                  <td className="px-4 py-3 text-center text-slate-700 dark:text-slate-300">
-                    <div className="text-xs">{g.deadline}</div>
+                  <td className="px-4 py-3 text-center">
+                    {getDeadlineBadge(g.deadline)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {getEligibilitySummary(g.eligibility_criteria)}
                   </td>
                   <td className="px-4 py-3">
                     <div className={`text-[10px] font-bold border inline-block px-2 py-0.5 rounded ${
@@ -262,7 +343,7 @@ export function GrantsPanel({
               ))}
               {filteredGrants.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
                     Brak wyników dla wybranych filtrów
                   </td>
                 </tr>
@@ -280,7 +361,7 @@ export function GrantsPanel({
         />
       )}
       <div
-        className={`fixed top-0 right-0 h-full w-full md:w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isGrantDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full md:w-[520px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-all duration-300 ease-in-out flex flex-col border-l border-slate-200 dark:border-slate-800 ${isGrantDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {selectedGrant && (
           <>
@@ -333,12 +414,16 @@ export function GrantsPanel({
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{selectedGrant.organizer}</p>
               )}
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
+              {/* Info grid */}
               <div className="grid grid-cols-2 gap-3">
                 {selectedGrant.deadline && (
                   <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl">
                     <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Termin</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedGrant.deadline}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedGrant.deadline}</p>
+                      {getDeadlineBadge(selectedGrant.deadline)}
+                    </div>
                   </div>
                 )}
                 {selectedGrant.max_amount && (
@@ -364,6 +449,73 @@ export function GrantsPanel({
                   </div>
                 )}
               </div>
+
+              {/* Śledzenie aplikacji */}
+              {(selectedGrant.application_url || selectedGrant.applied_at || selectedGrant.decision_expected_at) && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">Śledzenie aplikacji</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedGrant.applied_at && (
+                      <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-lg">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Złożono</p>
+                        <p className="text-xs text-slate-900 dark:text-white">{selectedGrant.applied_at}</p>
+                      </div>
+                    )}
+                    {selectedGrant.decision_expected_at && (
+                      <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-lg">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Oczekiwana decyzja</p>
+                        <p className="text-xs text-slate-900 dark:text-white">{selectedGrant.decision_expected_at}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedGrant.application_url && (
+                    <a
+                      href={selectedGrant.application_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline mt-2"
+                    >
+                      <ExternalLink size={14} /> Formularz aplikacji
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Pola patronatu (warunkowo) */}
+              {selectedGrant.type === 'PATRONAT' && (selectedGrant.patronage_event_name || selectedGrant.patron_identity || selectedGrant.patronage_event_date) && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">Szczegóły patronatu</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedGrant.patronage_event_name && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg col-span-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Nazwa wydarzenia</p>
+                        <p className="text-xs text-slate-900 dark:text-white">{selectedGrant.patronage_event_name}</p>
+                      </div>
+                    )}
+                    {selectedGrant.patronage_event_date && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Data wydarzenia</p>
+                        <p className="text-xs text-slate-900 dark:text-white">{selectedGrant.patronage_event_date}</p>
+                      </div>
+                    )}
+                    {selectedGrant.patron_identity && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Patron</p>
+                        <p className="text-xs text-slate-900 dark:text-white">{selectedGrant.patron_identity}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Kryteria kwalifikowalności */}
+              <EligibilityChecklist
+                grantId={selectedGrant.id}
+                criteria={selectedGrant.eligibility_criteria || []}
+                isAdmin={isAdmin}
+                onUpdate={(updated) => setSelectedGrant({ ...selectedGrant, eligibility_criteria: updated })}
+              />
+
               {selectedGrant.description && (
                 <div>
                   <p className="text-xs font-bold text-slate-500 uppercase mb-2">Opis</p>
@@ -521,6 +673,79 @@ export function GrantsPanel({
                   </select>
                 </div>
               </div>
+
+              {/* Śledzenie aplikacji */}
+              <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3">Śledzenie aplikacji</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">URL formularza</label>
+                    <input
+                      type="url"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
+                      value={grantForm.application_url}
+                      onChange={e => setGrantForm({ ...grantForm, application_url: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data złożenia</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                      value={grantForm.applied_at}
+                      onChange={e => setGrantForm({ ...grantForm, applied_at: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Oczekiwana decyzja</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                      value={grantForm.decision_expected_at}
+                      onChange={e => setGrantForm({ ...grantForm, decision_expected_at: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pola patronatu (warunkowo) */}
+              {grantForm.type === 'PATRONAT' && (
+                <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3">Szczegóły patronatu</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nazwa wydarzenia</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
+                        value={grantForm.patronage_event_name}
+                        onChange={e => setGrantForm({ ...grantForm, patronage_event_name: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data wydarzenia</label>
+                        <input
+                          type="date"
+                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                          value={grantForm.patronage_event_date}
+                          onChange={e => setGrantForm({ ...grantForm, patronage_event_date: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tożsamość patrona</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
+                          value={grantForm.patron_identity}
+                          onChange={e => setGrantForm({ ...grantForm, patron_identity: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Link do Drive</label>
                 <input
