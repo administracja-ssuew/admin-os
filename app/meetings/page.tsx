@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import SkeletonLoader from '../../components/SkeletonLoader'
-import { Plus, X, Lock, FileText } from 'lucide-react'
+import { Plus, X, Lock, FileText, Paperclip, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import type { MeetingProtocol, ProtocolStatus } from '../../types'
@@ -28,6 +28,8 @@ export default function MeetingsPage() {
   const [selectedProtocol, setSelectedProtocol] = useState<MeetingProtocol | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isFinalizing, setIsFinalizing] = useState(false)
 
   const fetchProtocols = useCallback(async () => {
     const { data } = await supabase
@@ -76,6 +78,60 @@ export default function MeetingsPage() {
     } else {
       toast.error('Błąd zapisu', { id: toastId })
     }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedProtocol) return
+    setIsUploading(true)
+    const toastId = toast.loading('Wrzucanie pliku...')
+    try {
+      const safeFileName = file.name
+        .replace(/ą/g, 'a').replace(/Ą/g, 'A')
+        .replace(/ć/g, 'c').replace(/Ć/g, 'C')
+        .replace(/ę/g, 'e').replace(/Ę/g, 'E')
+        .replace(/ł/g, 'l').replace(/Ł/g, 'L')
+        .replace(/ń/g, 'n').replace(/Ń/g, 'N')
+        .replace(/ó/g, 'o').replace(/Ó/g, 'O')
+        .replace(/ś/g, 's').replace(/Ś/g, 'S')
+        .replace(/ź/g, 'z').replace(/Ź/g, 'Z')
+        .replace(/ż/g, 'z').replace(/Ż/g, 'Z')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '_')
+      const filePath = `protocols/${selectedProtocol.id}/${crypto.randomUUID()}/${safeFileName}`
+      const { error: uploadError } = await supabase.storage
+        .from('adminos-files')
+        .upload(filePath, file, { contentType: file.type })
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('adminos-files').getPublicUrl(filePath)
+      const { error: updateError } = await supabase.from('meeting_protocols')
+        .update({ file_url: urlData.publicUrl, file_name: file.name, updated_at: new Date().toISOString() })
+        .eq('id', selectedProtocol.id)
+      if (updateError) throw updateError
+      toast.success('Plik dołączony!', { id: toastId })
+      setSelectedProtocol({ ...selectedProtocol, file_url: urlData.publicUrl, file_name: file.name })
+      await fetchProtocols()
+    } catch {
+      toast.error('Błąd podczas wgrywania pliku', { id: toastId })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleFinalize = async () => {
+    if (!selectedProtocol || selectedProtocol.protocol_status === 'finalized') return
+    setIsFinalizing(true)
+    const toastId = toast.loading('Blokowanie protokołu...')
+    const { error } = await supabase.from('meeting_protocols')
+      .update({ protocol_status: 'finalized', updated_at: new Date().toISOString() })
+      .eq('id', selectedProtocol.id)
+    if (!error) {
+      toast.success('Protokół zablokowany!', { id: toastId })
+      setSelectedProtocol({ ...selectedProtocol, protocol_status: 'finalized' })
+      await fetchProtocols()
+    } else {
+      toast.error('Błąd podczas blokowania', { id: toastId })
+    }
+    setIsFinalizing(false)
   }
 
   const openDrawer = (protocol: MeetingProtocol) => {
@@ -348,7 +404,48 @@ export default function MeetingsPage() {
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
+
+              {/* Plik protokołu */}
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Plik protokołu</p>
+                {selectedProtocol?.file_url ? (
+                  <a
+                    href={selectedProtocol.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm hover:underline"
+                  >
+                    <Paperclip size={14} />
+                    {selectedProtocol.file_name ?? 'Plik protokołu'}
+                  </a>
+                ) : (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Brak dołączonego pliku</p>
+                )}
+                {!isFinalized && (
+                  <label className="mt-2 flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                    <UploadCloud size={16} />
+                    {isUploading ? 'Wgrywanie...' : 'Dołącz plik'}
+                    <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+                  </label>
+                )}
+              </div>
             </div>
+
+            {!isFinalized && (
+              <div className="px-6 pt-4 pb-2">
+                <button
+                  onClick={handleFinalize}
+                  disabled={isFinalizing}
+                  className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Lock size={16} />
+                  {isFinalizing ? 'Blokowanie...' : 'Zablokuj protokół'}
+                </button>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+                  Po zablokowaniu protokół nie będzie mógł być edytowany.
+                </p>
+              </div>
+            )}
 
             {!isFinalized && (
               <div className="p-6 border-t border-slate-200 dark:border-slate-700 shrink-0">
