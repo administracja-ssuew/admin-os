@@ -55,12 +55,14 @@ Plans:
 **Requirements:** ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, ARCH-06
 **Why now:** The `/meetings` route is currently a dead link from the Archiving section — a visible gap to any user. Case Kanban reuses the existing `useCases` hook with a department filter and adds no new infrastructure. All patterns (FileUpload, slide-over drawer, RLS migration) are established.
 
-#### Plans
-1. Create `meeting_protocols` table — migration with fields: title, date, participants, agenda, findings, actions, protocol_status (`draft`/`finalized`), file_url, file_name; enable RLS with authenticated read, service-role write policies (ARCH-01, ARCH-03)
-2. Meeting minutes template editor — build the `/meetings` page editor UI with a form pre-filled from a template structure (title, date, participants, agenda, findings, actions fields); wire save to `meeting_protocols` table (ARCH-01)
-3. Meeting minutes file upload + finalize — wire `FileUpload.tsx` to attach a file to the protocol record; add a "Zablokuj protokół" action that sets `protocol_status = 'finalized'` and disables the editor form (ARCH-02, ARCH-03)
-4. Case Kanban for Archiving — add a Kanban view inside `ArchivingPanel` using `useCases` filtered by the current department; reuse existing Kanban column layout from the tasks board (ARCH-04)
-5. Archive folder types + audit — add `folder_type` enum column (`general`, `project_report`) to `archive_folders` via migration; surface the type in the UI as a badge; call `logAudit()` on folder status changes (ARCH-05, ARCH-06)
+**Plans:** 5 plans
+
+Plans:
+- [x] 04-01-PLAN.md — Migracja SQL: tabela meeting_protocols + kolumna folder_type; aktualizacja types/index.ts
+- [ ] 04-02-PLAN.md — Edytor protokołów na /meetings: lista + formularz tworzenia + drawer edycji
+- [ ] 04-03-PLAN.md — Upload pliku do protokołu + przycisk "Zablokuj protokół" (finalizacja)
+- [ ] 04-04-PLAN.md — Kanban spraw w ArchivingPanel: zakładka "Sprawy" z useCases filtrowanym po dept
+- [ ] 04-05-PLAN.md — Typy folderów (badge ogólny/raport projektowy) + audit log przy zmianie statusu
 
 ---
 
