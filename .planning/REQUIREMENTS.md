@@ -46,7 +46,7 @@
 - [x] **ARCH-03**: Protokół można zablokować (status `finalized`) — po zablokowaniu edycja jest niemożliwa
 - [x] **ARCH-04**: Widok Kanban spraw (`cases`) w module Archiwizacji pokazuje wyłącznie sprawy przypisane do bieżącej podkomisji
 - [x] **ARCH-05**: Foldery archiwum posiadają typ (`folder_type`): ogólny lub raport projektowy (dla Rady Projektów)
-- [ ] **ARCH-06**: Zmiana statusu folderu archiwum jest rejestrowana w audit logu
+- [x] **ARCH-06**: Zmiana statusu folderu archiwum jest rejestrowana w audit logu
 
 ### Grants (Granty)
 
@@ -140,7 +140,7 @@
 | ARCH-03 | Phase 4 | Complete |
 | ARCH-04 | Phase 4 | Complete |
 | ARCH-05 | Phase 4 | Complete |
-| ARCH-06 | Phase 4 | Pending |
+| ARCH-06 | Phase 4 | Complete |
 | GRANT-01 | Phase 5 | Pending |
 | GRANT-02 | Phase 5 | Pending |
 | GRANT-03 | Phase 5 | Pending |
