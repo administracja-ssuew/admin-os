@@ -44,7 +44,7 @@
 - [x] **ARCH-01**: Strona `/meetings` posiada edytor protokołu wypełniany z szablonu (pola: tytuł, data, uczestnicy, porządek obrad, ustalenia, akcje)
 - [x] **ARCH-02**: Do protokołu można dołączyć plik (upload do Supabase Storage)
 - [x] **ARCH-03**: Protokół można zablokować (status `finalized`) — po zablokowaniu edycja jest niemożliwa
-- [ ] **ARCH-04**: Widok Kanban spraw (`cases`) w module Archiwizacji pokazuje wyłącznie sprawy przypisane do bieżącej podkomisji
+- [x] **ARCH-04**: Widok Kanban spraw (`cases`) w module Archiwizacji pokazuje wyłącznie sprawy przypisane do bieżącej podkomisji
 - [x] **ARCH-05**: Foldery archiwum posiadają typ (`folder_type`): ogólny lub raport projektowy (dla Rady Projektów)
 - [ ] **ARCH-06**: Zmiana statusu folderu archiwum jest rejestrowana w audit logu
 
@@ -138,7 +138,7 @@
 | ARCH-01 | Phase 4 | Complete |
 | ARCH-02 | Phase 4 | Complete |
 | ARCH-03 | Phase 4 | Complete |
-| ARCH-04 | Phase 4 | Pending |
+| ARCH-04 | Phase 4 | Complete |
 | ARCH-05 | Phase 4 | Complete |
 | ARCH-06 | Phase 4 | Pending |
 | GRANT-01 | Phase 5 | Pending |

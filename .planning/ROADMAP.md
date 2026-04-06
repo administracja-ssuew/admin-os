@@ -55,13 +55,13 @@ Plans:
 **Requirements:** ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, ARCH-06
 **Why now:** The `/meetings` route is currently a dead link from the Archiving section — a visible gap to any user. Case Kanban reuses the existing `useCases` hook with a department filter and adds no new infrastructure. All patterns (FileUpload, slide-over drawer, RLS migration) are established.
 
-**Plans:** 5 plans
+**Plans:** 3/5 plans executed
 
 Plans:
 - [x] 04-01-PLAN.md — Migracja SQL: tabela meeting_protocols + kolumna folder_type; aktualizacja types/index.ts
-- [ ] 04-02-PLAN.md — Edytor protokołów na /meetings: lista + formularz tworzenia + drawer edycji
+- [x] 04-02-PLAN.md — Edytor protokołów na /meetings: lista + formularz tworzenia + drawer edycji
 - [ ] 04-03-PLAN.md — Upload pliku do protokołu + przycisk "Zablokuj protokół" (finalizacja)
-- [ ] 04-04-PLAN.md — Kanban spraw w ArchivingPanel: zakładka "Sprawy" z useCases filtrowanym po dept
+- [x] 04-04-PLAN.md — Kanban spraw w ArchivingPanel: zakładka "Sprawy" z useCases filtrowanym po dept
 - [ ] 04-05-PLAN.md — Typy folderów (badge ogólny/raport projektowy) + audit log przy zmianie statusu
 
 ---
@@ -112,7 +112,7 @@ Plans:
 | 1. Security Hardening & Stability | 6/6 | Complete   | 2026-04-06 |
 | 2. My-Department Refactor | 4/5 | In Progress|  |
 | 3. Logistics Module | 3/3 | Complete | 2026-04-06 |
-| 4. Archiving Module | 0/5 | Not started | - |
+| 4. Archiving Module | 3/5 | In Progress|  |
 | 5. Grants Module | 0/5 | Not started | - |
 | 6. Knowledge Base | 0/4 | Not started | - |
 | 7. UX Polish | 0/3 | Not started | - |

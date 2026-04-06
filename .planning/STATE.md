@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 04
 current_plan: 2
 status: In Progress — Phase 04 in progress
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-04-06T11:44:55.285Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-04-06T11:49:25.376Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 19
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -90,6 +90,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - [Phase 04]: RLS policies added for both service_role and authenticated — mutations use anon key client in this project
 - [Phase 04]: MeetingProtocol interface fully replaced — old meeting_id/content design discarded for standalone protocol table
 - **04-02:** Replaced entire meetings page (old meetings table) with meeting_protocols editor — per D-01 (full page, not slide-over)
+- [Phase 04-archiving-module]: Tab system in ArchivingPanel: border-b-2 -mb-px underline for active indicator; deptCases filtered by currentUser?.department_id
 
 ## Performance Metrics
 
@@ -111,5 +112,5 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 ## Last session
 
-**Stopped at:** Completed 04-02-PLAN.md
+**Stopped at:** Completed 04-04-PLAN.md
 **Timestamp:** 2026-04-06T15:08:00Z
