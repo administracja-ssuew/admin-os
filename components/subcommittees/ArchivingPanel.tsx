@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { logAudit } from '../../lib/audit'
 import { useCases } from '../../hooks/useCases'
 import ConfirmDialog from '../ConfirmDialog'
 import toast from 'react-hot-toast'
@@ -10,7 +11,7 @@ import {
   Paperclip, UploadCloud, Trash2, X, ExternalLink, Activity,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { ArchiveFolder, Petition, AppUser, CaseAttachment, Case, CaseStatus } from '../../types'
+import type { ArchiveFolder, Petition, AppUser, CaseAttachment, Case, CaseStatus, FolderType } from '../../types'
 
 // ─── TYPY LOKALNE ────────────────────────────────────────────────────────────
 interface DeptMember {
@@ -51,6 +52,7 @@ export function ArchivingPanel({
     title: '',
     status: 'W przygotowaniu',
     notes: '',
+    folder_type: 'general' as FolderType,
   })
   const [selectedFolder, setSelectedFolder] = useState<ArchiveFolder | null>(null)
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
@@ -77,13 +79,24 @@ export function ArchivingPanel({
     await supabase.from('archive_folders').insert([archiveForm])
     toast.success('Teczka utworzona!')
     setIsArchiveModalOpen(false)
-    setArchiveForm({ title: '', status: 'W przygotowaniu', notes: '' })
+    setArchiveForm({ title: '', status: 'W przygotowaniu', notes: '', folder_type: 'general' })
     await onRefetch()
     setIsSubmittingArchive(false)
   }
 
   const updateArchiveStatus = async (id: string, newStatus: string) => {
+    if (!currentUser) return
+    const folder = archiveFolders.find(f => f.id === id)
+    const oldStatus = folder?.status ?? null
     await supabase.from('archive_folders').update({ status: newStatus }).eq('id', id)
+    await logAudit({
+      userId: currentUser.id,
+      action: 'STATUS_CHANGED',
+      entityType: 'archive_folder',
+      entityId: id,
+      oldValue: oldStatus ? { status: oldStatus } : null,
+      newValue: { status: newStatus },
+    })
     await onRefetch()
   }
 
@@ -199,6 +212,14 @@ export function ArchivingPanel({
     { id: 'in_progress', title: 'W Toku', color: 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50', textColor: 'text-blue-700 dark:text-blue-400' },
     { id: 'closed', title: 'Zamknięte', color: 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/50', textColor: 'text-green-700 dark:text-green-500' },
   ]
+
+  // ─── HELPERS ─────────────────────────────────────────────────────
+  const getFolderTypeBadge = (folderType: FolderType) => {
+    if (folderType === 'project_report') {
+      return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">Raport projektowy</span>
+    }
+    return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Ogólna</span>
+  }
 
   // ─── JSX ───────────────────────────────────────────────────────
   return (
@@ -416,6 +437,7 @@ export function ArchivingPanel({
                     <option value="Przekazane do Archiwum">Zarchiwizowane</option>
                   </select>
                   <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-relaxed break-words">{folder.title}</h3>
+                  <div className="mt-2">{getFolderTypeBadge(folder.folder_type ?? 'general')}</div>
                 </div>
                 <div className="flex justify-between items-end pt-3 border-t border-slate-200 dark:border-slate-700 mt-auto">
                   <div className="flex items-center gap-1 text-xs font-bold text-slate-500">
@@ -650,6 +672,17 @@ export function ArchivingPanel({
                   value={archiveForm.title}
                   onChange={e => setArchiveForm({ ...archiveForm, title: e.target.value })}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Typ teczki</label>
+                <select
+                  value={archiveForm.folder_type}
+                  onChange={e => setArchiveForm({ ...archiveForm, folder_type: e.target.value as FolderType })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                >
+                  <option value="general">Ogólna</option>
+                  <option value="project_report">Raport projektowy</option>
+                </select>
               </div>
               <button
                 type="submit"
