@@ -216,6 +216,9 @@ export interface Asset {
   status: AssetStatus
   location: string | null
   notes: string | null
+  quantity: number
+  min_quantity: number
+  unit: 'szt' | 'ryza' | 'opak' | 'komplet'
   created_at: string
 }
 
@@ -227,6 +230,9 @@ export interface EquipmentLoan {
   agreement_number: string | null
   item_category: LoanItemCategory
   borrower_name: string
+  borrower_phone: string | null
+  borrower_org: string | null
+  loan_source: string | null
   issue_date: string
   return_date: string | null
   status: LoanStatus
