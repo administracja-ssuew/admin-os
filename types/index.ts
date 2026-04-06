@@ -313,7 +313,7 @@ export interface AgendaItem {
   id: string
   title: string
   notes: string
-  vote: { for: number; against: number; abstain: number } | null
+  voting_open: boolean
 }
 
 export interface MeetingProtocol {

@@ -18,9 +18,8 @@ interface Member {
   first_name: string
   last_name: string
   email: string
-  function: string | null
+  org_function: string | null
   system_role: string
-  personal_limit: number
   departments: { name: string }[] | null
 }
 
@@ -83,7 +82,7 @@ export default function ScoresClientPage() {
     // Pobierz wszystkich aktywnych Członków (active, admin, superadmin)
     const { data: membersData } = await supabase
       .from('users')
-      .select('id, first_name, last_name, email, function, system_role, personal_limit, departments(name)')
+      .select('id, first_name, last_name, email, org_function, system_role, departments(name)')
       .in('system_role', ['active', 'admin', 'superadmin'])
       .order('last_name', { ascending: true })
 
@@ -108,7 +107,7 @@ export default function ScoresClientPage() {
         saved: !!existing,
         saving: false,
         editingLimit: false,
-        limitInput: String(m.personal_limit ?? 20),
+        limitInput: '20',
       }
     })
 
@@ -128,13 +127,12 @@ export default function ScoresClientPage() {
     if (!row) return 0
     const a = parseFloat(row.activity) || 0
     const q = parseFloat(row.quality) || 0
-    const limit = member.personal_limit ?? 20
+    const limit = 20
     return Math.min(a + q, limit)
   }
 
   const getPercent = (userId: string, member: Member) => {
-    const limit = member.personal_limit ?? 20
-    if (limit === 0) return 0
+    const limit = 20
     return Math.round((getTotal(userId, member) / limit) * 100)
   }
 
@@ -144,7 +142,7 @@ export default function ScoresClientPage() {
 
     const a = parseFloat(row.activity) || 0
     const q = parseFloat(row.quality) || 0
-    const limit = member.personal_limit ?? 20
+    const limit = 20
 
     if (a + q > limit) {
       toast.error(`Suma punktów (${a + q}) przekracza limit tej osoby (${limit})`)
@@ -171,18 +169,9 @@ export default function ScoresClientPage() {
   }
 
   const saveLimit = async (member: Member) => {
-    const row = rows[member.id]
-    const newLimit = parseInt(row.limitInput)
-    if (isNaN(newLimit) || newLimit < 1 || newLimit > 20) {
-      toast.error('Limit musi być liczbą od 1 do 20')
-      return
-    }
-    const { error } = await supabase.from('users').update({ personal_limit: newLimit }).eq('id', member.id)
-    if (!error) {
-      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, personal_limit: newLimit } : m))
-      updateRow(member.id, 'editingLimit', false)
-      toast.success('Limit zaktualizowany')
-    } else toast.error('Błąd zapisu limitu')
+    // personal_limit column not yet in schema — just close editing mode
+    updateRow(member.id, 'editingLimit', false)
+    toast('Limit musi być skonfigurowany w bazie danych')
   }
 
   const prevMonth = () => {
@@ -266,7 +255,7 @@ export default function ScoresClientPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`font-extrabold text-lg ${getScoreColor(r.pct)}`}>{r.pct}%</p>
-                    <p className="text-[10px] text-slate-500">{r.total}/{r.member.personal_limit} pkt</p>
+                    <p className="text-[10px] text-slate-500">{r.total}/20 pkt</p>
                   </div>
                 </div>
               ))}
@@ -296,7 +285,7 @@ export default function ScoresClientPage() {
                 if (!row) return null
                 const total = getTotal(member.id, member)
                 const pct = getPercent(member.id, member)
-                const limit = member.personal_limit ?? 20
+                const limit = 20
                 const a = parseFloat(row.activity) || 0
                 const q = parseFloat(row.quality) || 0
                 const isOverLimit = a + q > limit
