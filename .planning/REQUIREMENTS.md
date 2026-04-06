@@ -26,7 +26,7 @@
 ### Refactor (Refaktor)
 
 - [x] **REF-01**: `my-department/page.tsx` podzielony na dedykowane hooki danych (`useLogisticsData`, `useArchivingData`, `useGrantsData`)
-- [ ] **REF-02**: Każda podkomisja ma własne komponenty panelu (`LogisticsPanel`, `ArchivingPanel`, `GrantsPanel`)
+- [x] **REF-02**: Każda podkomisja ma własne komponenty panelu (`LogisticsPanel`, `ArchivingPanel`, `GrantsPanel`)
 - [ ] **REF-03**: `page.tsx` jest cienkim orkiestratorem (~80 linii) — bez bezpośredniej logiki biznesowej
 - [x] **REF-04**: Routing podkomisji używa kolumny `dept_type` (enum) zamiast dopasowania po nazwie string
 - [x] **REF-05**: Zdefiniowane interfejsy TypeScript dla wszystkich nowych modułów w `types/index.ts` (EquipmentLoan, Grant, EligibilityCriterion, MeetingProtocol)
@@ -126,7 +126,7 @@
 | STAB-03 | Phase 1 | Complete |
 | STAB-04 | Phase 1 | Complete |
 | REF-01 | Phase 2 | Complete |
-| REF-02 | Phase 2 | Pending |
+| REF-02 | Phase 2 | Complete |
 | REF-03 | Phase 2 | Pending |
 | REF-04 | Phase 2 | Complete |
 | REF-05 | Phase 2 | Complete |
