@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 02
-current_plan: 4
+current_plan: 5
 status: Executing Phase 02
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-04-04T12:00:00Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-04-04T00:15:00Z"
 progress:
   total_phases: 7
   completed_phases: 1
@@ -16,9 +16,9 @@ progress:
 
 # Project State
 
-**Last updated:** 2026-04-06
+**Last updated:** 2026-04-04
 **Current phase:** 02
-**Current plan:** 4
+**Current plan:** 5
 
 ## Project Reference
 
@@ -79,6 +79,8 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - **02-02:** Promise.all used for all parallel queries per REF-01 decision
 - **02-03:** LogisticsReport interface kept local to LogisticsPanel — not promoted to types/index.ts yet
 - **02-03:** Petition status 'Zaakceptowane' from page.tsx corrected to 'Rozpatrzone' to match PetitionStatus type definition
+- **02-04:** All 3 hooks called unconditionally — hooks receive undefined departmentId when dept_type doesn't match, handle it internally with early return
+- **02-04:** Spread operator ({...logistics}) passes all hook data to panels — panels own UI for their data
 
 ## Performance Metrics
 
@@ -92,8 +94,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | Phase 02 P01 | 2min | 2 tasks | 2 files |
 | 02 | 02 | 8min | 2 | 3 |
 | 02 | 03 | 25min | 2 | 3 |
+| 02 | 04 | 15min | 1 | 1 |
 
 ## Last session
 
-**Stopped at:** Completed 02-03-PLAN.md
-**Timestamp:** 2026-04-04T12:00:00Z
+**Stopped at:** Completed 02-04-PLAN.md
+**Timestamp:** 2026-04-04T00:15:00Z

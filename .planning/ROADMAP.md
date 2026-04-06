@@ -108,7 +108,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Hardening & Stability | 6/6 | Complete   | 2026-04-06 |
-| 2. My-Department Refactor | 1/5 | In Progress|  |
+| 2. My-Department Refactor | 4/5 | In Progress|  |
 | 3. Logistics Module | 0/5 | Not started | - |
 | 4. Archiving Module | 0/5 | Not started | - |
 | 5. Grants Module | 0/5 | Not started | - |
