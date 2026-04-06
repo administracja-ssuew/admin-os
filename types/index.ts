@@ -140,6 +140,7 @@ export interface KnowledgeArticle {
 export interface Department {
   id: string
   name: string
+  dept_type: DeptType | null
 }
 
 // ─── DECYZJE (PANEL ZARZĄDU) ──────────────────────────────────────
@@ -199,4 +200,98 @@ export interface NotificationPreference {
   email_new_meeting: boolean
   email_deadline_reminder: boolean
   email_external_submission: boolean
+}
+
+// ─── TYPY MY-DEPARTMENT (Phase 2 Refactor) ────────────────────
+
+export type DeptType = 'logistics' | 'archiving' | 'grants'
+
+export type AssetStatus = 'available' | 'low_stock' | 'maintenance'
+export type AssetType = 'Artykuły biurowe' | 'Sprzęt IT' | 'Meble' | 'Audio-Video' | 'Inne'
+
+export interface Asset {
+  id: string
+  name: string
+  asset_type: AssetType
+  status: AssetStatus
+  location: string | null
+  notes: string | null
+  created_at: string
+}
+
+export type LoanStatus = 'Wypożyczone' | 'Zwrócone'
+export type LoanItemCategory = 'Namiot Plenerowy' | 'Sprzęt Audio' | 'Projektor' | 'Meble' | 'Inne'
+
+export interface EquipmentLoan {
+  id: string
+  agreement_number: string | null
+  item_category: LoanItemCategory
+  borrower_name: string
+  issue_date: string
+  return_date: string | null
+  status: LoanStatus
+  notes: string | null
+  created_at: string
+}
+
+export type GrantStatus = 'RADAR' | 'W TOKU' | 'ARCHIWUM'
+export type GrantDecision = 'OCZEKUJE' | 'ZAAKCEPTOWANE' | 'ODRZUCONE'
+export type GrantType = 'DOTACJA' | 'PATRONAT'
+
+export interface Grant {
+  id: string
+  signature: string | null
+  name: string
+  organizer: string | null
+  type: GrantType
+  max_amount: number | null
+  scope: string
+  deadline: string | null
+  status: GrantStatus
+  decision: GrantDecision
+  owner_id: string | null
+  drive_link: string | null
+  description: string | null
+  notes: string | null
+  created_at: string
+  // relacje
+  owner?: { first_name: string; last_name: string } | null
+}
+
+export type ArchiveFolderStatus = 'W przygotowaniu' | 'Aktywna' | 'Zamknięta'
+
+export interface ArchiveFolder {
+  id: string
+  title: string
+  status: ArchiveFolderStatus
+  notes: string | null
+  attachments: CaseAttachment[]
+  created_at: string
+}
+
+export type PetitionStatus = 'Złożone' | 'Rozpatrzone' | 'Odrzucone'
+
+export interface Petition {
+  id: string
+  title: string
+  recipient: string
+  submission_date: string
+  status: PetitionStatus
+  attachments: CaseAttachment[]
+  created_at: string
+}
+
+export interface EligibilityCriterion {
+  id: string
+  grant_id: string
+  description: string
+  is_met: boolean | null
+}
+
+export interface MeetingProtocol {
+  id: string
+  meeting_id: string
+  content: string
+  status: ProtocolStatus
+  created_at: string
 }
