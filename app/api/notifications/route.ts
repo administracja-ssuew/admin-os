@@ -10,29 +10,28 @@ import {
 } from '../../../lib/email-templates'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-function getSupabase(token?: string) {
-  if (token) {
-    const client = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    return client
-  }
-  return createClient(supabaseUrl, supabaseServiceKey)
-}
 
 // POST /api/notifications
 // Body: { type, payload, userId? }
 export async function POST(request: Request) {
   try {
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseServiceKey) {
+      return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' }, { status: 500 })
+    }
+
     const authHeader = request.headers.get('Authorization')
     const token = authHeader?.replace('Bearer ', '')
 
-    const supabase = getSupabase(token)
+    // Klient service role — do wszystkich operacji DB (INSERT do notifications, SELECT adminów)
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey)
+    // Klient anon — wyłącznie do weryfikacji tokena użytkownika
+    const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
     // Jeśli token podany — weryfikujemy usera
     let callerUserId: string | null = null
     if (token) {
-      const { data: { user } } = await supabase.auth.getUser(token)
+      const { data: { user } } = await supabaseAnon.auth.getUser(token)
       callerUserId = user?.id ?? null
     }
 
@@ -44,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     // Pobieramy adminów do notyfikacji (dla typów 'external_submission')
-    const { data: admins } = await supabase
+    const { data: admins } = await supabaseService
       .from('users')
       .select('id, email, first_name, last_name')
       .in('system_role', ['admin', 'superadmin'])
@@ -56,7 +55,7 @@ export async function POST(request: Request) {
         const { taskTitle, assigneeId, assigneeEmail, assignerName } = payload
 
         // In-app
-        await supabase.from('notifications').insert([{
+        await supabaseService.from('notifications').insert([{
           user_id: assigneeId,
           type: 'task_assigned',
           title: 'Przydzielono Ci nowe zadanie',
@@ -77,7 +76,7 @@ export async function POST(request: Request) {
         const { caseNumber, caseTitle, oldStatus, newStatus, ownerEmail, ownerId } = payload
 
         if (ownerId) {
-          await supabase.from('notifications').insert([{
+          await supabaseService.from('notifications').insert([{
             user_id: ownerId,
             type: 'case_status_changed',
             title: `Zmiana statusu: ${caseNumber}`,
@@ -98,7 +97,7 @@ export async function POST(request: Request) {
         const { caseNumber, caseTitle, commentAuthor, ownerId, ownerEmail } = payload
 
         if (ownerId) {
-          await supabase.from('notifications').insert([{
+          await supabaseService.from('notifications').insert([{
             user_id: ownerId,
             type: 'case_comment',
             title: `Nowy komentarz w sprawie ${caseNumber}`,
@@ -121,7 +120,7 @@ export async function POST(request: Request) {
         const tpl = newMeetingTemplate(meetingTitle, date, time, organizerName)
 
         if (attendeeIds.length > 0) {
-          await supabase.from('notifications').insert(
+          await supabaseService.from('notifications').insert(
             attendeeIds.map((uid: string) => ({
               user_id: uid,
               type: 'new_meeting',
@@ -144,7 +143,7 @@ export async function POST(request: Request) {
 
         // In-app dla adminów
         if (admins && admins.length > 0) {
-          await supabase.from('notifications').insert(
+          await supabaseService.from('notifications').insert(
             admins.map(a => ({
               user_id: a.id,
               type: 'external_submission',
@@ -173,6 +172,9 @@ export async function POST(request: Request) {
       default:
         return Response.json({ error: `Unknown notification type: ${type}` }, { status: 400 })
     }
+
+    // Suppress unused variable warning for callerUserId (reserved for future auth enforcement)
+    void callerUserId
 
     return Response.json({ success: true })
   } catch (err) {
