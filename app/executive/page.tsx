@@ -6,13 +6,15 @@ import ExecutiveClientPage from './ExecutiveClientPage'
 export default async function ExecutivePanelPage() {
   const supabase = await createSupabaseServerClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  // getSession reads the JWT from cookies without a network call — more reliable
+  // than getUser() when cookie-based sessions are freshly established.
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) redirect('/login')
 
   const { data: userData } = await supabase
     .from('users')
     .select('system_role')
-    .eq('id', user.id)
+    .eq('id', session.user.id)
     .single()
 
   const allowedRoles = ['admin', 'superadmin']

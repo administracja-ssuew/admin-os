@@ -6,13 +6,13 @@ import ScoresClientPage from './ScoresClientPage'
 export default async function ScoresPage() {
   const supabase = await createSupabaseServerClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) redirect('/login')
 
   const { data: userData } = await supabase
     .from('users')
     .select('system_role')
-    .eq('id', user.id)
+    .eq('id', session.user.id)
     .single()
 
   if (!userData || userData.system_role !== 'superadmin') {

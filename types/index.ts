@@ -303,6 +303,19 @@ export interface Petition {
 }
 
 
+export interface AttendanceMember {
+  id: string
+  name: string
+  present: boolean
+}
+
+export interface AgendaItem {
+  id: string
+  title: string
+  notes: string
+  vote: { for: number; against: number; abstain: number } | null
+}
+
 export interface MeetingProtocol {
   id: string
   title: string
@@ -317,4 +330,6 @@ export interface MeetingProtocol {
   created_by: string | null
   created_at: string
   updated_at: string
+  attendance: AttendanceMember[]
+  agenda_items: AgendaItem[]
 }
