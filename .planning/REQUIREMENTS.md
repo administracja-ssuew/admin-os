@@ -18,10 +18,10 @@
 
 ### Stability (Stabilność)
 
-- [ ] **STAB-01**: Numery spraw (`case_number`) generowane server-side z unikalnym constraintem w bazie
-- [ ] **STAB-02**: Tabela `department_notes` posiada constraint `UNIQUE(department_id)`, zapis używa UPSERT
-- [ ] **STAB-03**: Kanał Realtime w `NotificationBell` jest poprawnie czyszczony przy odmontowaniu komponentu
-- [ ] **STAB-04**: Błędy mutacji są widoczne dla użytkownika (brak cichych błędów w operacjach CRUD)
+- [x] **STAB-01**: Numery spraw (`case_number`) generowane server-side z unikalnym constraintem w bazie
+- [x] **STAB-02**: Tabela `department_notes` posiada constraint `UNIQUE(department_id)`, zapis używa UPSERT
+- [x] **STAB-03**: Kanał Realtime w `NotificationBell` jest poprawnie czyszczony przy odmontowaniu komponentu
+- [x] **STAB-04**: Błędy mutacji są widoczne dla użytkownika (brak cichych błędów w operacjach CRUD)
 
 ### Refactor (Refaktor)
 
@@ -121,10 +121,10 @@
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Complete |
 | SEC-06 | Phase 1 | Complete |
-| STAB-01 | Phase 1 | Pending |
-| STAB-02 | Phase 1 | Pending |
-| STAB-03 | Phase 1 | Pending |
-| STAB-04 | Phase 1 | Pending |
+| STAB-01 | Phase 1 | Complete |
+| STAB-02 | Phase 1 | Complete |
+| STAB-03 | Phase 1 | Complete |
+| STAB-04 | Phase 1 | Complete |
 | REF-01 | Phase 2 | Pending |
 | REF-02 | Phase 2 | Pending |
 | REF-03 | Phase 2 | Pending |

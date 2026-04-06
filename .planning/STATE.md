@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 01 — security-hardening-stability
-current_plan: 05 (01-04 complete)
+current_plan: 06 (01-06 complete — Phase 01 done)
 status: in_progress
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-04-06T01:53:00Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-04-06T08:32:40.037Z"
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 6
 ---
 
 # Project State
 
 **Last updated:** 2026-04-06
 **Current phase:** 01 — security-hardening-stability
-**Current plan:** 05 (01-04 complete)
+**Current plan:** 06 (Phase 01 complete)
 
 ## Project Reference
 
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 | Phase | Status |
 |-------|--------|
-| Phase 1: Security Hardening & Stability | In Progress (01-04 done) |
+| Phase 1: Security Hardening & Stability | Complete (all 6 plans done) |
 | Phase 2: My-Department Refactor | Not started |
 | Phase 3: Logistics Module | Not started |
 | Phase 4: Archiving Module | Not started |
@@ -56,7 +56,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | `.planning/PROJECT.md` | Complete |
 | `.planning/REQUIREMENTS.md` | Complete (38 v1 requirements) |
 | `.planning/ROADMAP.md` | Complete (7 phases, 33 plans) |
-| Phase 01 plans | In Progress |
+| Phase 01 plans | Complete (6/6) |
 
 ## Decisions
 
@@ -69,6 +69,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 - **01-03:** POST /api/notifications now requires valid Bearer session token — missing or invalid token returns 401 before any DB operation (closes SEC-02)
 - **01-03:** lib/notify.ts updated to early-return (with error log) when no session token, instead of silently omitting Authorization header
 - **01-04:** WITH CHECK (false) on notifications INSERT policy blocks all JWT-auth users; service role key bypasses RLS entirely — idiomatic Supabase pattern for API-only writes (closes SEC-04)
+- [Phase 01]: STAB-01: Postgres sequence + BEFORE INSERT trigger used for atomic server-side case_number generation — eliminates client-side race condition
+- [Phase 01]: STAB-02: UPSERT with ignoreDuplicates: true used for department_notes — preserves existing note content and eliminates select-then-insert race condition
+- [Phase 01]: STAB-03: NotificationBell channel hoisted to useEffect outer scope — cleanup returned directly from useEffect so React calls removeChannel on unmount
 
 ## Performance Metrics
 
@@ -78,8 +81,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 | 01 | 02 | 2min | 2 | 4 |
 | 01 | 03 | 3min | 1 | 2 |
 | 01 | 04 | 2min | 1 | 1 |
+| 01 | 06 | 15min | 5 | 5 |
 
 ## Last session
 
-**Stopped at:** Completed 01-04-PLAN.md
+**Stopped at:** Completed 01-06-PLAN.md
 **Timestamp:** 2026-04-06T01:53:00Z
