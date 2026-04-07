@@ -80,11 +80,11 @@ export default function ScoresClientPage() {
     const { data: me } = await supabase.from('users').select('system_role').eq('email', session.user.email).single()
     if (!me || me.system_role !== 'superadmin') { router.replace('/'); return }
 
-    // Pobierz wszystkich aktywnych Członków (active, admin, superadmin)
+    // Pobierz wszystkich aktywnych Członków (active, member, admin, superadmin)
     const { data: membersData } = await supabase
       .from('users')
       .select('id, first_name, last_name, email, org_function, system_role, personal_limit, departments(name)')
-      .in('system_role', ['active', 'admin', 'superadmin'])
+      .in('system_role', ['active', 'member', 'admin', 'superadmin'])
       .order('last_name', { ascending: true })
 
     // Pobierz wyniki dla wybranego miesiąca
