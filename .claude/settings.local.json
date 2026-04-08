@@ -15,7 +15,29 @@
       "Bash([ -f \"types/index.ts\" ])",
       "Bash([ -f \"hooks/useLogisticsData.ts\" ])",
       "Bash([ -f \".planning/phases/03-logistics-module/03-02-SUMMARY.md\" ])",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs state advance-plan)"
+      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs state advance-plan)",
+      "Bash(sed -n '1,30p' \"c:/Users/Mikołaj/Downloads/admin-os/admin-os/app/scores/ScoresClientPage.tsx\")",
+      "Bash(sed -n '100,115p' \"c:/Users/Mikołaj/Downloads/admin-os/admin-os/app/scores/ScoresClientPage.tsx\")",
+      "Bash(npm install:*)",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\Mikołaj\\\\Downloads\\\\admin-os\\\\admin-os && npx tsc --noEmit 2>&1\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(wc -l \"/c/Users/Mikołaj/Downloads/admin-os/admin-os/app/\"*/page.tsx)",
+      "Bash(grep -A 10 \"meeting_votes\" /c/Users/Mikołaj/Downloads/admin-os/admin-os/supabase/migrations/*.sql)",
+      "Bash(grep -h \"CREATE TABLE\\\\|create table\" /c/Users/Mikołaj/Downloads/admin-os/admin-os/supabase/migrations/*.sql)",
+      "Bash(grep -r \"CREATE TABLE\\\\|alter table\" /c/Users/Mikołaj/Downloads/admin-os/admin-os/supabase/migrations/*.sql)",
+      "Bash(grep \"ALTER TABLE\" /c/Users/Mikołaj/Downloads/admin-os/admin-os/supabase/migrations/*.sql)",
+      "Bash(grep -c \"ml-64\" /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/*.tsx)",
+      "Bash(grep -l \"ml-64\\\\|ml-\" /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/**/*.tsx)",
+      "Bash(sed -i 's/ ml-64 p-8 overflow-y-auto custom-scrollbar\"/ md:ml-64 p-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar\"/g' /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/page.tsx)",
+      "Bash(sed -i 's/flex-1 ml-64 overflow-y-auto/flex-1 md:ml-64 overflow-y-auto pt-14 md:pt-0/g' /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/my-department/page.tsx)",
+      "Bash(sed -i 's/ ml-64 p-8 overflow-y-auto custom-scrollbar flex flex-col h-screen\"/ md:ml-64 p-8 pt-16 md:pt-8 overflow-y-auto custom-scrollbar flex flex-col h-screen\"/g' /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/executive/ExecutiveClientPage.tsx)",
+      "Bash(sed -i 's/ ml-64 flex flex-col items-center justify-center gap-4 text-center p-8\"/ md:ml-64 flex flex-col items-center justify-center gap-4 text-center p-8 pt-16 md:pt-8\"/g' /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/brainstorm/page.tsx)",
+      "Bash(sed -i 's/ ml-64 p-8 flex flex-col h-screen overflow-y-auto custom-scrollbar\"/ md:ml-64 p-8 pt-16 md:pt-8 flex flex-col h-screen overflow-y-auto custom-scrollbar\"/g' /c/Users/Mikołaj/Downloads/admin-os/admin-os/app/users/page.tsx)",
+      "Bash(grep -l \"archive_folders\\\\|meeting_votes\" \"/c/Users/Mikołaj/Downloads/admin-os/admin-os/supabase/migrations/\"*.sql)",
+      "Bash(grep -l \"tasks\" supabase/migrations/*.sql)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -l \"meeting_protocols\\\\|meeting_protocol\" supabase/migrations/*.sql)",
+      "Bash(grep -n \"reports\\\\|submitted_by\" supabase/migrations/*.sql)"
     ]
   }
 }
