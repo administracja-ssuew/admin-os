@@ -97,8 +97,10 @@ export default function ScoresClientPage() {
     const scoresMap: Record<string, any> = {}
     scoresData?.forEach(s => { scoresMap[s.user_id] = s })
 
+    const filteredMembers = ((membersData as any[]) || []).filter(m => m.email !== session.user.email)
+
     const initialRows: Record<string, ScoreRow> = {}
-    membersData?.forEach(m => {
+    filteredMembers.forEach((m: any) => {
       const existing = scoresMap[m.id]
       initialRows[m.id] = {
         userId: m.id,
@@ -112,7 +114,7 @@ export default function ScoresClientPage() {
       }
     })
 
-    setMembers((membersData as any[]) || [])
+    setMembers(filteredMembers)
     setRows(initialRows)
     setLoading(false)
   }, [year, month])
