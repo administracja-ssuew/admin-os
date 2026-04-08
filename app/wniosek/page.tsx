@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../lib/supabase'
 import FileUpload from '../../components/FileUpload'
 import type { UploadedFile } from '../../components/FileUpload'
 import {
@@ -11,6 +10,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { notifyExternalSubmission } from '../actions/notifyExternalSubmission'
+import { fetchPublicCalendarEvents, submitExternalCase } from '../actions/externalCase'
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -123,24 +123,7 @@ export default function PublicIntakePage() {
     setCalendarLoading(true)
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-    const [protocolsRes, tasksRes] = await Promise.all([
-      supabase
-        .from('meeting_protocols')
-        .select('id, title, date')
-        .gte('date', toDateStr(startOfMonth))
-        .lte('date', toDateStr(endOfMonth)),
-      supabase
-        .from('tasks')
-        .select('id, title, deadline')
-        .not('deadline', 'is', null)
-        .gte('deadline', toDateStr(startOfMonth))
-        .lte('deadline', toDateStr(endOfMonth))
-        .neq('status', 'done'),
-    ])
-    const combined = [
-      ...(protocolsRes.data ?? []).map(m => ({ id: `m-${m.id}`, title: m.title, date: m.date, type: 'meeting' as const })),
-      ...(tasksRes.data ?? []).map(t => ({ id: `t-${t.id}`, title: t.title, date: t.deadline, type: 'task' as const })),
-    ]
+    const combined = await fetchPublicCalendarEvents(toDateStr(startOfMonth), toDateStr(endOfMonth))
     setEvents(combined)
     setCalendarLoading(false)
   }, [currentDate])
@@ -222,29 +205,26 @@ export default function PublicIntakePage() {
 
     const attachments = uploadedFiles.map(f => ({ id: f.id, name: f.name, url: f.url, added_at: f.added_at }))
 
-    const { data: insertedCase, error } = await supabase.from('cases').insert([{
+    const result = await submitExternalCase({
       id: pendingCaseId,
       title: formData.title,
       description: fullDescription,
       case_type: formData.case_type,
-      source: 'Formularz Zewnętrzny',
-      status: 'new',
-      confidentiality_level: 'internal',
       attachments: attachments.length > 0 ? attachments : null,
-    }]).select('case_number').single()
+    })
 
-    if (!error && insertedCase) {
-      setGeneratedNumber(insertedCase.case_number)
+    if ('caseNumber' in result) {
+      setGeneratedNumber(result.caseNumber)
       setIsSuccess(true)
       notifyExternalSubmission({
-        caseNumber: insertedCase.case_number,
+        caseNumber: result.caseNumber,
         caseTitle: formData.title,
         caseType: formData.case_type,
         contactEmail: formData.contact_email,
       }).catch(err => console.error('External notification failed:', err))
-    } else if (error) {
+    } else {
       setErrorMsg('Wystąpił problem z połączeniem. Spróbuj ponownie za chwilę.')
-      console.error(error)
+      console.error(result.error)
     }
 
     setIsSubmitting(false)
