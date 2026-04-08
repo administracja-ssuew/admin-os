@@ -21,7 +21,7 @@ interface Member {
   org_function: string | null
   system_role: string
   personal_limit: number | null
-  departments: { name: string }[] | null
+  departments: { name: string } | null
 }
 
 interface ScoreRow {
@@ -112,7 +112,7 @@ export default function ScoresClientPage() {
       }
     })
 
-    setMembers(membersData || [])
+    setMembers((membersData as any[]) || [])
     setRows(initialRows)
     setLoading(false)
   }, [year, month])
@@ -317,7 +317,7 @@ export default function ScoresClientPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-white text-sm">{member.first_name} {member.last_name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{member.departments?.[0]?.name || 'Brak podkomisji'}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{member.departments?.name || 'Brak podkomisji'}</p>
                         </div>
                       </div>
 

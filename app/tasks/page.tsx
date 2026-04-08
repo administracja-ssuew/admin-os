@@ -34,6 +34,9 @@ export default function TasksPage() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   
+  const [feedbackText, setFeedbackText] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
+
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
 
@@ -41,6 +44,36 @@ export default function TasksPage() {
     title: '', description: '', owner_id: '', department_id: '',
     project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' 
   })
+
+  // --- WERYFIKACJA ZADAŃ ---
+  const handleVerify = async (status: 'approved' | 'rejected') => {
+    if (!selectedTask) return
+    setIsVerifying(true)
+    const toastId = toast.loading('Zapisywanie weryfikacji...')
+  
+    const { error } = await supabase.from('tasks').update({
+      verification_status: status,
+      verification_feedback: feedbackText || null
+    }).eq('id', selectedTask.id)
+  
+    if (!error) {
+      if (selectedTask.owner_id) {
+         sendNotification('task_feedback', {
+           taskTitle: selectedTask.title,
+           assigneeId: selectedTask.owner_id,
+           isApproved: status === 'approved',
+           feedback: feedbackText || null,
+           reviewerName: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Zarząd'
+         })
+      }
+      toast.success('Pomyślnie wystawiono ocenę zadania!', { id: toastId })
+      setSelectedTask({ ...selectedTask, verification_status: status, verification_feedback: feedbackText || null })
+      fetchData()
+    } else {
+      toast.error('Błąd podczas zapisywania oceny', { id: toastId })
+    }
+    setIsVerifying(false)
+  }
 
   useEffect(() => {
     fetchData()
@@ -250,7 +283,7 @@ export default function TasksPage() {
         onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedTaskId(task.id) }}
         onDragEnd={() => setDraggedTaskId(null)}
         className={`bg-white dark:bg-slate-800 p-4 rounded-xl border transition-all group cursor-grab active:cursor-grabbing relative overflow-hidden softly-lifted ${draggedTaskId === task.id ? 'opacity-40 scale-95' : ''} ${isUnassigned ? 'border-orange-200 dark:border-orange-800/50 shadow-orange-100 dark:shadow-none' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`}
-        onClick={() => { setSelectedTask(task); setIsEditingTask(false); setIsDrawerOpen(true); }}
+        onClick={() => { setSelectedTask(task); setIsEditingTask(false); setFeedbackText(task.verification_feedback || ''); setIsDrawerOpen(true); }}
       >
         {isUnassigned && <div className="absolute inset-0 bg-orange-50/30 dark:bg-orange-900/5 pointer-events-none"></div>}
         
@@ -266,7 +299,11 @@ export default function TasksPage() {
           </div>
         </div>
         
-        <h3 className="font-bold text-slate-900 dark:text-white mb-3 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors relative z-10">{task.title}</h3>
+        <h3 className="font-bold text-slate-900 dark:text-white mb-3 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors relative z-10 flex gap-2">
+          {task.title}
+          {task.verification_status === 'approved' && <span title="Zatwierdzone" className="shrink-0"><CheckCircle2 size={16} className="text-green-500" /></span>}
+          {task.verification_status === 'rejected' && <span title="Do poprawy" className="shrink-0"><X size={16} className="text-red-500" /></span>}
+        </h3>
         
         {task.checklists?.length > 0 && (
           <div className="mb-3 relative z-10">
@@ -474,6 +511,35 @@ export default function TasksPage() {
                     <button onClick={(e) => claimTask(e, selectedTask.id)} className="mt-4 w-full py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2">
                       <Hand size={16} /> Biorę to zadanie!
                     </button>
+                  )}
+
+                  {/* WERYFIKACJA SEKCJA INFO */}
+                  {(selectedTask.verification_status && selectedTask.verification_status !== 'unverified') && (
+                    <div className={`mt-5 p-4 rounded-xl border ${selectedTask.verification_status === 'approved' ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'}`}>
+                      <h4 className={`text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 ${selectedTask.verification_status === 'approved' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                        {selectedTask.verification_status === 'approved' ? <><CheckCircle2 size={14}/> Zatwierdzone przez Zarząd</> : <><X size={14}/> Wymaga poprawek</>}
+                      </h4>
+                      {selectedTask.verification_feedback && (
+                        <p className="text-sm text-slate-700 dark:text-slate-300 italic break-words">"{selectedTask.verification_feedback}"</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PANEL WERYFIKACJI DLA ZARZĄDU */}
+                  {isAdmin && (
+                    <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Panel Oceny Zadania (Ty jako Admin)</h4>
+                      <textarea
+                        placeholder="Zostaw tu polecenia, co jeszcze jest do poprawy lub słowo pochwały..."
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white outline-none resize-none h-20 mb-3"
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <button disabled={isVerifying} onClick={() => handleVerify('approved')} className="flex-1 py-1.5 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-800/50 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 font-bold rounded-lg transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-1"><CheckCircle2 size={16}/> Zatwierdź</button>
+                        <button disabled={isVerifying} onClick={() => handleVerify('rejected')} className="flex-1 py-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-800/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 font-bold rounded-lg transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-1"><X size={16}/> Do poprawki</button>
+                      </div>
+                    </div>
                   )}
                 </>
               )}

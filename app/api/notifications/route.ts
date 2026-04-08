@@ -73,6 +73,20 @@ export async function POST(request: Request) {
         break
       }
 
+      case 'task_feedback': {
+        // payload: { taskTitle, assigneeId, isApproved, feedback, reviewerName }
+        const { taskTitle, assigneeId, isApproved, feedback, reviewerName } = payload
+
+        await supabaseService.from('notifications').insert([{
+          user_id: assigneeId,
+          type: 'task_feedback',
+          title: isApproved ? 'Twoje zadanie zostało zweryfikowane!' : 'Zadanie wymaga poprawek',
+          body: isApproved ? `${taskTitle} - Zatwierdzone przez ${reviewerName}` : `${taskTitle} - Od: ${reviewerName}`,
+          link: '/tasks',
+        }])
+        break
+      }
+
       case 'case_status_changed': {
         // payload: { caseNumber, caseTitle, oldStatus, newStatus, ownerEmail, ownerId }
         const { caseNumber, caseTitle, oldStatus, newStatus, ownerEmail, ownerId } = payload

@@ -87,6 +87,8 @@ export interface Task {
   attachments: TaskAttachment[]
   completion_percentage: number
   is_zarzad: boolean
+  verification_status?: 'unverified' | 'approved' | 'rejected'
+  verification_feedback?: string | null
   created_at: string
   updated_at?: string
   // relacje
@@ -180,6 +182,7 @@ export type NotificationType =
   | 'new_meeting'
   | 'external_submission'
   | 'deadline_reminder'
+  | 'task_feedback'
 
 export interface Notification {
   id: string
