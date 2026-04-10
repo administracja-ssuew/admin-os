@@ -31,6 +31,19 @@ function getRotation(id: string): string {
   return `rotate(${angles[Math.abs(h) % angles.length]}deg)`
 }
 
+function getScatter(id: string): { x: number; y: number } {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = Math.imul(37, h) + id.charCodeAt(i) | 0
+  }
+  const xs = [-14, -10, -6, -3, 0, 0, 3, 6, 10, 14]
+  const ys = [-8, -5, -3, 0, 0, 3, 5, 8]
+  return {
+    x: xs[Math.abs(h) % xs.length],
+    y: ys[Math.abs(h >> 4) % ys.length],
+  }
+}
+
 function colorCfg(colorId: string) {
   return COLORS.find(c => c.id === colorId) ?? COLORS[0]
 }
@@ -124,11 +137,12 @@ function StickyCard({
 }) {
   const cfg = colorCfg(card.color)
   const rotation = getRotation(card.id)
+  const scatter = getScatter(card.id)
 
   return (
     <div
-      className={`break-inside-avoid mb-5 inline-block w-full ${cfg.bg} ${cfg.border} border shadow-lg ${cfg.shadow} rounded-xl p-4 relative group transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:z-10 cursor-default`}
-      style={{ transform: rotation }}
+      className={`break-inside-avoid mb-8 inline-block w-full ${cfg.bg} ${cfg.border} border shadow-lg ${cfg.shadow} rounded-xl p-5 relative group transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:z-10 cursor-default`}
+      style={{ transform: `translate(${scatter.x}px, ${scatter.y}px) ${rotation}` }}
     >
       {/* Przyciski akcji */}
       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
@@ -402,7 +416,7 @@ export default function BrainstormPage() {
               </p>
             </div>
           ) : (
-            <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-5">
+            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-10 px-4">
               {filteredCards.map(card => (
                 <StickyCard
                   key={card.id}
