@@ -31,6 +31,18 @@ async function credFetch(params: Record<string, string>) {
   }).then(r => r.json())
 }
 
+async function credPost(body: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession()
+  return fetch(CRED_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  }).then(r => r.json())
+}
+
 function slaClass(state: string) {
   if (state === 'overdue') return 'text-red-600 dark:text-red-400 font-bold'
   if (state === 'danger')  return 'text-orange-600 dark:text-orange-400 font-bold'
@@ -160,7 +172,7 @@ export default function CREDPage() {
     if (!selectedZnak) return
     setActionLoading(true)
     try {
-      const data = await credFetch({ action, znak: selectedZnak, ...params })
+      const data = await credPost({ action, znak: selectedZnak, ...params })
       if (data.error) throw new Error(data.error)
       showToast(successMsg)
       await Promise.all([loadList(), loadDetails(selectedZnak)])
