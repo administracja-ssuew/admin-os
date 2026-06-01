@@ -416,9 +416,6 @@ export default function CasesPage() {
                 </div>
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mb-2">{selectedCase.title}</h2>
-              {selectedCase.description && (
-                <p className="text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 whitespace-pre-wrap">{selectedCase.description}</p>
-              )}
 
               {/* Zmiana statusu + właściciel — tylko admin */}
               {isAdmin && (
@@ -468,7 +465,15 @@ export default function CasesPage() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900 flex flex-col gap-5">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900 flex flex-col gap-5">
+
+              {/* Treść wniosku */}
+              {selectedCase.description && (
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FileText size={14} /> Treść wniosku</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{selectedCase.description}</p>
+                </div>
+              )}
 
               {/* Akta sprawy — upload plików */}
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
