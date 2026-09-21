@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import {
   ChevronLeft, ChevronRight, Save, Loader2, Trophy,
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { useScoresAccess } from '../../hooks/useScoresAccess'
+import ScoresAccessPanel from '../../components/ScoresAccessPanel'
 
 const MONTH_NAMES = ['Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
   'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień']
@@ -61,6 +63,9 @@ function PercentBar({ pct }: { pct: number }) {
 
 export default function ScoresClientPage() {
   const router = useRouter()
+  const { allowed, admin: canEdit, loading: accessLoading } = useScoresAccess()
+  const [loadError, setLoadError] = useState('')
+  const [reload, setReload] = useState(0)
 
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -71,57 +76,70 @@ export default function ScoresClientPage() {
   const [loading, setLoading] = useState(true)
   const [showRanking, setShowRanking] = useState(false)
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      if (!allowed) return
+      const { data: { user: sessionUser } } = await supabase.auth.getUser()
+      if (!sessionUser) { router.replace('/login'); return }
 
-    // Client-side role guard
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user?.email) { router.replace('/login'); return }
-    const { data: me } = await supabase.from('users').select('system_role').eq('email', session.user.email).single()
-    if (!me || me.system_role !== 'superadmin') { router.replace('/'); return }
+      // Pobierz wszystkich aktywnych Członków (active, member, admin, superadmin)
+      const { data: membersData, error: membersError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, org_function, system_role, personal_limit, departments(name)')
+        .in('system_role', ['active', 'member', 'admin', 'superadmin'])
+        .order('last_name', { ascending: true })
 
-    // Pobierz wszystkich aktywnych Członków (active, member, admin, superadmin)
-    const { data: membersData } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, email, org_function, system_role, personal_limit, departments(name)')
-      .in('system_role', ['active', 'member', 'admin', 'superadmin'])
-      .order('last_name', { ascending: true })
+      // Pobierz wyniki dla wybranego miesiąca
+      const { data: scoresData, error: scoresError } = await supabase
+        .from('member_scores')
+        .select('*')
+        .eq('year', year)
+        .eq('month', month)
 
-    // Pobierz wyniki dla wybranego miesiąca
-    const { data: scoresData } = await supabase
-      .from('member_scores')
-      .select('*')
-      .eq('year', year)
-      .eq('month', month)
+      if (cancelled) return
+      if (membersError || scoresError) {
+        setMembers([])
+        setRows({})
+        setLoadError('Nie udało się pobrać ocen. Spróbuj ponownie.')
+        setLoading(false)
+        return
+      }
+      setLoadError('')
+      const scoresMap: Record<string, { activity_points: number; quality_points: number; notes: string | null }> = {}
+      scoresData?.forEach(s => { scoresMap[s.user_id] = s })
 
-    const scoresMap: Record<string, any> = {}
-    scoresData?.forEach(s => { scoresMap[s.user_id] = s })
+      const filteredMembers = ((membersData as unknown as Member[]) || []).filter(m => m.email.toLowerCase() !== 'administracja@samorzad.ue.wroc.pl')
 
-    const filteredMembers = ((membersData as any[]) || []).filter(m => m.email !== session.user.email)
+      const initialRows: Record<string, ScoreRow> = {}
+      filteredMembers.forEach((m: Member) => {
+        const existing = scoresMap[m.id]
+        initialRows[m.id] = {
+          userId: m.id,
+          activity: existing ? String(existing.activity_points) : '0',
+          quality: existing ? String(existing.quality_points) : '0',
+          notes: existing?.notes || '',
+          saved: !!existing,
+          saving: false,
+          editingLimit: false,
+          limitInput: String(m.personal_limit ?? 20),
+        }
+      })
 
-    const initialRows: Record<string, ScoreRow> = {}
-    filteredMembers.forEach((m: any) => {
-      const existing = scoresMap[m.id]
-      initialRows[m.id] = {
-        userId: m.id,
-        activity: existing ? String(existing.activity_points) : '0',
-        quality: existing ? String(existing.quality_points) : '0',
-        notes: existing?.notes || '',
-        saved: !!existing,
-        saving: false,
-        editingLimit: false,
-        limitInput: String(m.personal_limit ?? 20),
+      setMembers(filteredMembers)
+      setRows(initialRows)
+      setLoading(false)
+    }
+    void load().catch(() => {
+      if (!cancelled) {
+        setLoadError('Nie udało się pobrać ocen. Spróbuj ponownie.')
+        setLoading(false)
       }
     })
+    return () => { cancelled = true }
+  }, [year, month, allowed, router, reload])
 
-    setMembers(filteredMembers)
-    setRows(initialRows)
-    setLoading(false)
-  }, [year, month])
-
-  useEffect(() => { fetchData() }, [fetchData])
-
-  const updateRow = (userId: string, field: keyof ScoreRow, value: any) => {
+  const updateRow = <K extends keyof ScoreRow>(userId: string, field: K, value: ScoreRow[K]) => {
     setRows(prev => ({ ...prev, [userId]: { ...prev[userId], [field]: value } }))
   }
 
@@ -140,6 +158,7 @@ export default function ScoresClientPage() {
   }
 
   const saveScore = async (member: Member) => {
+    if (!canEdit) return
     const row = rows[member.id]
     if (!row) return
 
@@ -147,6 +166,10 @@ export default function ScoresClientPage() {
     const q = parseFloat(row.quality) || 0
     const limit = getLimit(member)
 
+    if (a < 0 || q < 0 || !Number.isFinite(a + q)) {
+      toast.error('Punkty muszą być nieujemnymi liczbami')
+      return
+    }
     if (a + q > limit) {
       toast.error(`Suma punktów (${a + q}) przekracza limit tej osoby (${limit})`)
       return
@@ -172,17 +195,15 @@ export default function ScoresClientPage() {
   }
 
   const saveLimit = async (member: Member) => {
+    if (!canEdit) return
     const row = rows[member.id]
     if (!row) return
-    const newLimit = parseInt(row.limitInput)
-    if (isNaN(newLimit) || newLimit < 1 || newLimit > 100) {
-      toast.error('Limit musi być liczbą od 1 do 100')
+    const newLimit = Number(row.limitInput)
+    if (!Number.isInteger(newLimit) || newLimit < 1 || newLimit > 20) {
+      toast.error('Limit musi być liczbą od 1 do 20')
       return
     }
-    const { error } = await supabase
-      .from('users')
-      .update({ personal_limit: newLimit })
-      .eq('id', member.id)
+    const { error } = await supabase.rpc('set_score_limit', { member_id: member.id, new_limit: newLimit })
     if (!error) {
       setMembers(prev => prev.map(m => m.id === member.id ? { ...m, personal_limit: newLimit } : m))
       updateRow(member.id, 'editingLimit', false)
@@ -193,10 +214,12 @@ export default function ScoresClientPage() {
   }
 
   const prevMonth = () => {
+    setLoading(true)
     if (month === 1) { setMonth(12); setYear(y => y - 1) }
     else setMonth(m => m - 1)
   }
   const nextMonth = () => {
+    setLoading(true)
     if (month === 12) { setMonth(1); setYear(y => y + 1) }
     else setMonth(m => m + 1)
   }
@@ -206,6 +229,9 @@ export default function ScoresClientPage() {
     .map(m => ({ member: m, pct: getPercent(m.id, m), total: getTotal(m.id, m) }))
     .filter(r => rows[r.member.id]?.saved)
     .sort((a, b) => b.pct - a.pct)
+
+  if (accessLoading) return <div role="status" className="p-8 text-slate-300">Sprawdzanie dostępu…</div>
+  if (!allowed) return <div role="alert" className="p-8 text-slate-300">Brak dostępu do Systemu Motywacyjnego. <button onClick={() => router.push('/')} className="underline">Wróć do panelu</button></div>
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-6 md:p-10">
@@ -223,7 +249,7 @@ export default function ScoresClientPage() {
               </div>
               System Motywacyjny
             </h1>
-            <p className="text-slate-400 text-sm mt-1">Widoczne wyłącznie dla Ciebie</p>
+            <p className="text-slate-400 text-sm mt-1">Dostęp wyłącznie dla uprawnionych osób</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -239,6 +265,9 @@ export default function ScoresClientPage() {
           </div>
         </div>
       </div>
+
+      {canEdit && <ScoresAccessPanel />}
+      {loadError && <div role="alert" className="max-w-6xl mx-auto mb-6 text-red-300">{loadError} <button onClick={() => { setLoading(true); setReload(value => value + 1) }} className="underline">Spróbuj ponownie</button></div>}
 
       {/* NAWIGACJA MIESIĄCA */}
       <div className="max-w-6xl mx-auto mb-6">
@@ -273,7 +302,7 @@ export default function ScoresClientPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`font-extrabold text-lg ${getScoreColor(r.pct)}`}>{r.pct}%</p>
-                    <p className="text-[10px] text-slate-500">{r.total}/20 pkt</p>
+                    <p className="text-[10px] text-slate-500">{r.total}/{getLimit(r.member)} pkt</p>
                   </div>
                 </div>
               ))}
@@ -344,6 +373,7 @@ export default function ScoresClientPage() {
                             </div>
                           ) : (
                             <button
+                              disabled={!canEdit}
                               onClick={() => { updateRow(member.id, 'editingLimit', true); updateRow(member.id, 'limitInput', String(limit)) }}
                               className="flex items-center gap-1.5 text-sm font-bold text-slate-300 hover:text-blue-400 transition-colors group"
                             >
@@ -365,6 +395,8 @@ export default function ScoresClientPage() {
                           max={limit}
                           step={0.5}
                           className="w-full px-3 py-2 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl text-white text-sm font-bold outline-none transition-colors text-center"
+                          readOnly={!canEdit}
+                          aria-label={`Aktywność: ${member.first_name} ${member.last_name}`}
                           value={row.activity}
                           onChange={e => { updateRow(member.id, 'activity', e.target.value); updateRow(member.id, 'saved', false) }}
                         />
@@ -381,6 +413,8 @@ export default function ScoresClientPage() {
                           max={limit}
                           step={0.5}
                           className="w-full px-3 py-2 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl text-white text-sm font-bold outline-none transition-colors text-center"
+                          readOnly={!canEdit}
+                          aria-label={`Jakość: ${member.first_name} ${member.last_name}`}
                           value={row.quality}
                           onChange={e => { updateRow(member.id, 'quality', e.target.value); updateRow(member.id, 'saved', false) }}
                         />
@@ -402,22 +436,24 @@ export default function ScoresClientPage() {
                       {/* NOTATKA */}
                       <div className="flex-1 lg:flex-[1.5]">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                          <Info size={10} /> Notatka (prywatna)
+                          <Info size={10} /> Notatka dla uprawnionych
                         </p>
                         <input
                           type="text"
                           placeholder="Uzasadnienie, obserwacje..."
                           className="w-full px-3 py-2 bg-slate-800 border border-slate-700 focus:border-slate-500 rounded-xl text-slate-300 text-sm outline-none transition-colors placeholder-slate-600"
+                          readOnly={!canEdit}
+                          aria-label={`Notatka: ${member.first_name} ${member.last_name}`}
                           value={row.notes}
                           onChange={e => { updateRow(member.id, 'notes', e.target.value); updateRow(member.id, 'saved', false) }}
                         />
                       </div>
 
                       {/* ZAPIS */}
-                      <div className="flex items-end shrink-0">
+                      {canEdit && <div className="flex items-end shrink-0">
                         <button
                           onClick={() => saveScore(member)}
-                          disabled={row.saving || isOverLimit}
+                          disabled={!canEdit || row.saving || isOverLimit}
                           className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 disabled:opacity-50 ${
                             row.saved
                               ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800 hover:bg-emerald-900/60'
@@ -431,7 +467,7 @@ export default function ScoresClientPage() {
                             : <><Save size={15} /> Zapisz</>
                           }
                         </button>
-                      </div>
+                      </div>}
                     </div>
                   </div>
                 )
@@ -458,7 +494,7 @@ export default function ScoresClientPage() {
         </div>
 
         <p className="mt-4 text-center text-[11px] text-slate-700 font-bold uppercase tracking-widest">
-          Ta strona nie jest indeksowana w nawigacji. Dostęp tylko przez bezpośredni URL.
+          Dostęp do ocen i rankingu nadaje administracja@samorzad.ue.wroc.pl.
         </p>
       </div>
     </div>

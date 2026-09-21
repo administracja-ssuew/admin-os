@@ -154,8 +154,8 @@ export async function POST(request: Request) {
       }
 
       case 'external_submission': {
-        // payload: { caseNumber, caseTitle, caseType, contactEmail }
-        const { caseNumber, caseTitle, caseType, contactEmail } = payload
+        // payload: { caseNumber, caseTitle, contactEmail }
+        const { caseNumber, caseTitle, contactEmail } = payload
 
         // In-app dla adminów
         if (admins && admins.length > 0) {
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
           // Email do adminów
           const adminEmails = admins.map(a => a.email).filter(Boolean)
           if (adminEmails.length > 0) {
-            const adminTpl = externalSubmissionAdminTemplate(caseNumber, caseTitle, contactEmail, caseType)
+            const adminTpl = externalSubmissionAdminTemplate(caseNumber, caseTitle, contactEmail)
             await sendEmail({ to: adminEmails, subject: adminTpl.subject, html: adminTpl.html })
           }
         }

@@ -336,7 +336,6 @@ export function ArchivingPanel({
                           )}
                           <div className="flex items-center justify-between mb-1 pr-4">
                             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">{c.case_number}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold">{c.case_type}</span>
                           </div>
                           <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{c.title}</p>
                           {c.users && (

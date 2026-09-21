@@ -15,9 +15,9 @@ import {
   ChevronRight, Trash2, Edit2, Check, ChevronDown, ArrowRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { matchesCaseFilters } from '../../lib/case-filters'
 import type { Case, CaseComment, AppUser, Department } from '../../types'
 
-const CASE_TYPES = ['Administracyjna', 'Finansowa', 'Prawna', 'Kadrowa', 'Logistyczna', 'Inna']
 
 export default function CasesPage() {
   const { user: currentUser, isAdmin } = useCurrentUser()
@@ -45,13 +45,13 @@ export default function CasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    title: '', description: '', case_type: 'Administracyjna',
+    title: '', description: '',
     confidentiality_level: 'internal', owner_id: '', department_id: ''
   })
 
   // Filtry
   const [filterValues, setFilterValues] = useState<Record<string, string>>({
-    search: '', status: '', case_type: '', department_id: '', owner_id: '', date_from: '', date_to: ''
+    search: '', status: '', date_to: ''
   })
 
   // Potwierdzenie usunięcia sprawy
@@ -239,7 +239,6 @@ export default function CasesPage() {
     const { error } = await supabase.from('cases').insert([{
       title: formData.title,
       description: formData.description || null,
-      case_type: formData.case_type,
       confidentiality_level: formData.confidentiality_level,
       owner_id: formData.owner_id || currentUser?.id,
       department_id: formData.department_id || null,
@@ -248,7 +247,7 @@ export default function CasesPage() {
       attachments: []
     }])
     if (!error) {
-      setFormData({ title: '', description: '', case_type: 'Administracyjna', confidentiality_level: 'internal', owner_id: '', department_id: '' })
+      setFormData({ title: '', description: '', confidentiality_level: 'internal', owner_id: '', department_id: '' })
       setIsModalOpen(false)
       fetchData()
       toast.success('Sprawa zarejestrowana')
@@ -273,24 +272,12 @@ export default function CasesPage() {
 
   // Filtry
   const filterConfigs: FilterConfig[] = [
-    { key: 'search', label: 'Szukaj', type: 'search', placeholder: 'Szukaj po nazwie lub sygnaturze...' },
+    { key: 'search', label: 'Szukaj', type: 'search', placeholder: 'Szukaj po sygnaturze...' },
     { key: 'status', label: 'Status', type: 'select', options: [{ value: 'new', label: 'Nowa' }, { value: 'in_progress', label: 'W toku' }, { value: 'closed', label: 'Zamknięta' }] },
-    { key: 'case_type', label: 'Typ sprawy', type: 'select', options: CASE_TYPES.map(t => ({ value: t, label: t })) },
-    { key: 'department_id', label: 'Pion', type: 'select', options: departments.map(d => ({ value: d.id, label: d.name })) },
-    { key: 'date_from', label: 'Od', type: 'date' },
     { key: 'date_to', label: 'Do', type: 'date' },
   ]
 
-  const filteredCases = cases.filter(c => {
-    const q = filterValues.search.toLowerCase()
-    if (q && !(c.title || '').toLowerCase().includes(q) && !(c.case_number || '').toLowerCase().includes(q)) return false
-    if (filterValues.status && c.status !== filterValues.status) return false
-    if (filterValues.case_type && c.case_type !== filterValues.case_type) return false
-    if (filterValues.department_id && c.department_id !== filterValues.department_id) return false
-    if (filterValues.date_from && c.created_at < filterValues.date_from) return false
-    if (filterValues.date_to && c.created_at.split('T')[0] > filterValues.date_to) return false
-    return true
-  })
+  const filteredCases = cases.filter(c => matchesCaseFilters(c, filterValues))
 
   const totalPages = Math.max(1, Math.ceil(filteredCases.length / PAGE_SIZE))
   const pagedCases = filteredCases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -321,7 +308,7 @@ export default function CasesPage() {
             filters={filterConfigs}
             values={filterValues}
             onChange={(key, val) => { setFilterValues(prev => ({ ...prev, [key]: val })); setPage(1) }}
-            onClear={() => { setFilterValues({ search: '', status: '', case_type: '', department_id: '', owner_id: '', date_from: '', date_to: '' }); setPage(1) }}
+            onClear={() => { setFilterValues({ search: '', status: '', date_to: '' }); setPage(1) }}
           />
         </div>
 
@@ -361,7 +348,7 @@ export default function CasesPage() {
                         {c.title}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate max-w-xs">
-                        {c.source === 'Formularz Zewnętrzny' ? '📥 Wpłynęło z Biura Podawczego' : c.case_type}
+                        {c.source === 'Formularz Zewnętrzny' ? '📥 Wpłynęło z Biura Podawczego' : ''}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -628,12 +615,6 @@ export default function CasesPage() {
                 <textarea rows={3} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white resize-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Typ sprawy</label>
-                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.case_type} onChange={(e) => setFormData({ ...formData, case_type: e.target.value })}>
-                    {CASE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Poufność</label>
                   <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.confidentiality_level} onChange={(e) => setFormData({ ...formData, confidentiality_level: e.target.value })}>

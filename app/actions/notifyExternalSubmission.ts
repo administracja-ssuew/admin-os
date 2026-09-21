@@ -5,7 +5,6 @@
 export async function notifyExternalSubmission(payload: {
   caseNumber: string
   caseTitle: string
-  caseType: string
   contactEmail: string
 }): Promise<void> {
   const secret = process.env.EXTERNAL_NOTIFICATIONS_SECRET

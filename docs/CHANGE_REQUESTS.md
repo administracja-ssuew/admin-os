@@ -1,0 +1,33 @@
+﻿# Zmiany z 2026-09-21
+
+## Wykonane w kodzie
+
+1. System Motywacyjny: dostęp dla zweryfikowanego konta `administracja@samorzad.ue.wroc.pl`; panel nadawania i odbierania podglądu innym istniejącym kontom. Zwykła rola superadmin nie wystarcza. Nawigacja, wejście przez URL i dane są zabezpieczone. Przyjęto interpretację „widzenia zakładki” jako podglądu; osoby dopuszczone nie edytują ocen ani uprawnień.
+2. Usunięta Baza Wiedzy: strona `/knowledge`, nawigacja i typ artykułu. Nowa migracja zamyka dostęp aplikacji do historycznej tabeli. Zależność react-markdown pozostaje, bo używa jej Burza Mózgów.
+3. Zebrania: usunięte głosowania, wyniki, subskrypcje i operacje na głosach. Zachowano porządek obrad i notatki, obecność, protokoły i załączniki.
+4. Rejestr Spraw: wyłącznie filtry sygnatury (numer sprawy i sygnatura CRED), statusu (Nowa/W toku/Zamknięta) oraz daty „Do”. Data nadal dotyczy utworzenia sprawy, obejmuje cały wskazany dzień. Kontrolka daty ma polski język i opis formatu dd.mm.rrrr; natywny sposób renderowania zależy od ustawień przeglądarki.
+5. Kategoria/typ sprawy: usunięte z tworzenia sprawy, wniosku, listy, podglądu statusu, archiwum i powiadomień. Nowe rekordy nie podają tej wartości.
+6. Uzupełnione instrukcje projektu, konfiguracja e-maili, testy, CI i polecenie typecheck. Naprawiony konflikt zależności: @supabase/ssr 0.10.0 wymaga supabase-js co najmniej 2.100.1; przypięto kompatybilną wersję 2.100.1. Resend jest inicjalizowany dopiero przy wysyłce, aby brak klucza nie blokował kompilacji.
+
+## Wdrożenie bazy — pozostaje do wykonania na środowisku docelowym
+
+Po sprawdzeniu kopii zapasowej i stanu bazy uruchom w SQL Editor właściwego projektu Supabase, w tej kolejności:
+
+1. `supabase/migrations/20260921_scores_access.sql`
+2. `supabase/migrations/20260921_retire_categories_knowledge_voting.sql`
+
+To migracje jednorazowe, transakcyjne. Nie wymagają service role w przeglądarce. Pierwsza tworzy przydziały dostępu na UUID kont Auth, zastępuje polityki member_scores i zabezpiecza zmianę personal_limit. Druga usuwa obowiązkowość i domyślną wartość case_type oraz zamyka klientom dostęp do knowledge_articles i meeting_votes. Historyczne rekordy pozostają w bazie.
+
+Nie zastosowano tych migracji do zdalnej bazy. Do czasu ich zastosowania nowy moduł ocen celowo odmawia dostępu. Formularze bez kategorii wymagają drugiej migracji. Skoordynuj migracje z wdrożeniem aplikacji; stara aplikacja po zmianie polityk utraci obsługę usuwanych modułów.
+
+## Odbiór na rzeczywistym Supabase
+
+- Zalogować wskazane konto, sprawdzić oceny i panel uprawnień.
+- Nadać dostęp aktywnej osobie; sprawdzić menu, bezpośredni URL i podgląd po ponownym logowaniu.
+- Odebrać dostęp; sprawdzić blokadę następnego zapytania oraz zniknięcie UI do 30 sekund lub po odzyskaniu fokusu.
+- Sprawdzić brak odczytu i zapisu dla osoby bez dostępu, brak edycji dla osoby z podglądem i brak dostępu na samej roli superadmin.
+- Złożyć wniosek bez kategorii, dodać sprawę wewnętrzną, odczytać starszą sprawę i jej status.
+- Połączyć filtry sygnatury, statusu i daty granicznej, wyczyścić je.
+- Sprawdzić porządek obrad, obecność i protokół; głosowania i /knowledge mają być niedostępne.
+
+Kolejne wymagania użytkownika należy dopisywać, nie zastępując tej listy bez wyraźnego polecenia.

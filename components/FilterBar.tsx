@@ -34,6 +34,7 @@ export default function FilterBar({ filters, values, onChange, onClear }: Filter
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
+                aria-label={filter.label}
                 placeholder={filter.placeholder ?? `Szukaj...`}
                 value={values[filter.key] ?? ''}
                 onChange={(e) => onChange(filter.key, e.target.value)}
@@ -47,6 +48,7 @@ export default function FilterBar({ filters, values, onChange, onClear }: Filter
           return (
             <select
               key={filter.key}
+              aria-label={filter.label}
               value={values[filter.key] ?? ''}
               onChange={(e) => onChange(filter.key, e.target.value)}
               className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -65,6 +67,8 @@ export default function FilterBar({ filters, values, onChange, onClear }: Filter
               <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">{filter.label}:</span>
               <input
                 type="date"
+                lang="pl-PL"
+                aria-label={`${filter.label} (dd.mm.rrrr)`}
                 value={values[filter.key] ?? ''}
                 onChange={(e) => onChange(filter.key, e.target.value)}
                 className="px-2 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"

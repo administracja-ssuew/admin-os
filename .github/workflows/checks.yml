@@ -1,0 +1,25 @@
+﻿name: Checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Full lint (existing debt, see docs/VALIDATION.md)
+        continue-on-error: true
+        run: npm run lint
+      - name: Access control and changed meetings lint
+        run: npx eslint app/scores components/ScoresAccessPanel.tsx hooks/useScoresAccess.ts lib/case-filters.ts tests components/FilterBar.tsx app/meetings/page.tsx lib/email.ts
+      - run: npm run build

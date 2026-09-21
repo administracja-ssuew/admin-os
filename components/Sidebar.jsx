@@ -6,9 +6,11 @@ import { usePathname } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { Moon, Sun, LogOut, FileText, Lightbulb, Menu, X } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { useScoresAccess } from '../hooks/useScoresAccess'
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { allowed: canViewScores } = useScoresAccess()
   const [userRole, setUserRole] = useState(null)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -116,7 +118,6 @@ export default function Sidebar() {
           <Link href="/tasks" className={getLinkStyle('/tasks')}>✅ Zadania</Link>
           <Link href="/cred" className={getLinkStyle('/cred')}><span className="flex items-center gap-2"><FileText size={16} />CRED</span></Link>
           <Link href="/meetings" className={getLinkStyle('/meetings')}>📅 Zebrania</Link>
-          <Link href="/knowledge" className={getLinkStyle('/knowledge')}>💡 Baza Wiedzy</Link>
 
           {(userRole === 'admin' || userRole === 'superadmin') && (
             <div className="pt-4 mt-4 border-t border-slate-800">
@@ -129,14 +130,15 @@ export default function Sidebar() {
                 : 'block py-3 px-4 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium mt-2'}>
                 🛡️ Panel Kierownictwa
               </Link>
-              {userRole === 'superadmin' && (
-                <Link href="/scores" className={isActive('/scores')
-                  ? 'block py-3 px-4 rounded-lg bg-slate-700 text-white font-bold shadow-md transition-all border border-slate-600 mt-2'
-                  : 'block py-3 px-4 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium mt-2'}>
-                  🏆 System Motywacyjny
-                </Link>
-              )}
+
             </div>
+          )}
+          {canViewScores && (
+            <Link href="/scores" className={isActive('/scores')
+              ? 'block py-3 px-4 rounded-lg bg-slate-700 text-white font-bold shadow-md transition-all border border-slate-600 mt-2'
+              : 'block py-3 px-4 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium mt-2'}>
+              🏆 System Motywacyjny
+            </Link>
           )}
         </nav>
 

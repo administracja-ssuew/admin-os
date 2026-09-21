@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# AdminOS
 
-## Getting Started
+Wewnętrzny panel administracyjny samorządu UE we Wrocławiu: sprawy i wnioski, zadania, zebrania, praca podkomisji, dokumenty, CRED, kadry oraz System Motywacyjny. Publiczne Biuro Podawcze działa pod `/wniosek`.
 
-First, run the development server:
+## Szybki start
 
-```bash
+Używaj Node.js 24 (plik `.nvmrc`) i npm. Polecenia testowe korzystają z natywnej obsługi TypeScript w Node.
+
+```sh
+npm ci
+cp .env.local.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+W PowerShell kopiowanie: `Copy-Item .env.local.example .env.local`. Jeśli polityka blokuje `npm.ps1`, używaj `npm.cmd`, bez zmiany polityki systemowej. Otwórz http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Uzupełnij publiczny URL i klucz Supabase. Pozostałe zmienne konfigurują CRED, e-maile Resend, powiadomienia i cron; szczegóły w `.env.local.example`. Nigdy nie dodawaj `NEXT_PUBLIC_` do klucza service role lub innych sekretów. Klient publiczny ma dostęp ograniczony politykami RLS.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Najpierw przeczytaj
 
-## Learn More
+- [Kontekst, mapa modułów i architektura](docs/PROJECT_CONTEXT.md).
+- [Zmiany z 21.09.2026 i wdrożenie migracji](docs/CHANGE_REQUESTS.md).
+- [Weryfikacja i znane ograniczenia](docs/VALIDATION.md).
+- `AGENTS.md`, `PRODUCT.md`, `DESIGN.md`.
 
-To learn more about Next.js, take a look at the following resources:
+`.planning/` jest historyczną dokumentacją wcześniejszych etapów. W razie sprzeczności dotyczących zmian z września 2026 pierwszeństwo mają bieżący kod, aktualne wymagania użytkownika i dokumenty w `docs/`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sprawdzenie zmian
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sh
+npm run typecheck
+npm test
+npm run lint
+npm run build
+```
 
-## Deploy on Vercel
+Testy uruchamiają lokalny PostgreSQL przez PGlite; nie potrzebują konta Supabase ani kluczy i nie dotykają zewnętrznej bazy. Pełny lint ma zastane błędy, opisane w `docs/VALIDATION.md`. CI wymaga przejścia typów, testów i buildu, a pełny lint raportuje oddzielnie.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Build pobiera font Inter. Do samej kompilacji wystarczają publiczne zmienne Supabase; wartości przykładowe pozwalają sprawdzić build, ale nie uruchamiają logowania ani danych. Klucz Resend jest wymagany przy wysyłaniu wiadomości, a nie przy imporcie modułu. `npm start` uruchamia gotowy build.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Baza danych
+
+**Przed wdrożeniem zmian dostępu i formularzy zastosuj obie nowe migracje opisane w `docs/CHANGE_REQUESTS.md`.** Nie uruchamiano ich na produkcji w ramach prac nad kodem.
+
+Repozytorium zawiera migracje rozszerzające istniejącą bazę, ale nie kompletny schemat startowy. Historyczne pliki mają również powtarzające się prefiksy dat. Nie zakładaj, że `supabase db reset` lub automatyczne odtworzenie wszystkich plików zadziała na pustej bazie. Najpierw sprawdź stan i historię migracji docelowego projektu Supabase.

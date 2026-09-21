@@ -115,7 +115,6 @@ export default function PublicIntakePage() {
     description: '',
     contact_email: '',
     contact_phone: '',
-    case_type: 'Administracyjna',
     website: '', // honeypot
   })
 
@@ -209,7 +208,6 @@ export default function PublicIntakePage() {
       id: pendingCaseId,
       title: formData.title,
       description: fullDescription,
-      case_type: formData.case_type,
       attachments: attachments.length > 0 ? attachments : null,
     })
 
@@ -219,7 +217,6 @@ export default function PublicIntakePage() {
       notifyExternalSubmission({
         caseNumber: result.caseNumber,
         caseTitle: formData.title,
-        caseType: formData.case_type,
         contactEmail: formData.contact_email,
       }).catch(err => console.error('External notification failed:', err))
     } else {
@@ -232,7 +229,7 @@ export default function PublicIntakePage() {
 
   const resetForm = () => {
     setIsSuccess(false)
-    setFormData({ title: '', description: '', contact_email: '', contact_phone: '', case_type: 'Administracyjna', website: '' })
+    setFormData({ title: '', description: '', contact_email: '', contact_phone: '', website: '' })
     setFieldErrors({})
     setTouched({})
     setUploadedFiles([])
@@ -424,26 +421,6 @@ export default function PublicIntakePage() {
                         />
                       </div>
                       {fieldErrors.contact_phone && <p className="mt-1 text-xs text-red-500 font-bold">{fieldErrors.contact_phone}</p>}
-                    </div>
-
-                    {/* KATEGORIA */}
-                    <div>
-                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 ml-0.5">
-                        Kategoria sprawy
-                      </label>
-                      <select
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:bg-white dark:focus:bg-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 dark:text-white text-sm"
-                        value={formData.case_type}
-                        onChange={e => setFormData({ ...formData, case_type: e.target.value })}
-                      >
-                        <option value="Administracyjna">Sprawa Administracyjna</option>
-                        <option value="Finansowa">Finansowa / Dotacyjna</option>
-                        <option value="Prawna">Prawna</option>
-                        <option value="Logistyczna">Logistyczna</option>
-                        <option value="Skarga">Skarga / Zażalenie</option>
-                        <option value="Informacyjna">Zapytanie Informacyjne</option>
-                        <option value="Inna">Inna</option>
-                      </select>
                     </div>
 
                     {/* TYTUŁ */}

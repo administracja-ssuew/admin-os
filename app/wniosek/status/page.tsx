@@ -55,7 +55,6 @@ export default function WniosekStatusPage() {
     case_number: string
     status: string
     created_at: string
-    case_type: string
   } | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -70,7 +69,7 @@ export default function WniosekStatusPage() {
 
     const { data } = await supabase
       .from('cases')
-      .select('case_number, status, created_at, case_type')
+      .select('case_number, status, created_at')
       .eq('case_number', trimmed)
       .eq('source', 'Formularz Zewnętrzny')
       .single()
@@ -162,10 +161,6 @@ export default function WniosekStatusPage() {
                       {copied ? <Check size={14} /> : <Copy size={14} />}
                     </button>
                   </div>
-                </div>
-                <div className="px-4 py-3 flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kategoria</span>
-                  <span className="text-sm font-bold text-slate-700">{result.case_type}</span>
                 </div>
                 <div className="px-4 py-3 flex justify-between items-center">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Data złożenia</span>

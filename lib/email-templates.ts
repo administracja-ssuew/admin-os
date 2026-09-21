@@ -78,7 +78,7 @@ export function caseCommentTemplate(caseNumber: string, caseTitle: string, comme
   }
 }
 
-export function externalSubmissionAdminTemplate(caseNumber: string, title: string, email: string, caseType: string) {
+export function externalSubmissionAdminTemplate(caseNumber: string, title: string, email: string) {
   return {
     subject: `Nowy wniosek zewnętrzny: ${caseNumber}`,
     html: `
@@ -86,7 +86,7 @@ export function externalSubmissionAdminTemplate(caseNumber: string, title: strin
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin:12px 0;">
         <p style="margin:0 0 4px;color:#92400e;font-size:12px;font-weight:600;">NOWY WNIOSEK</p>
         <p style="margin:0 0 4px;color:#1e293b;font-size:15px;font-weight:600;">${title}</p>
-        <p style="margin:0;color:#64748b;font-size:13px;">Nr: ${caseNumber} | Typ: ${caseType} | Email: ${email}</p>
+        <p style="margin:0;color:#64748b;font-size:13px;">Nr: ${caseNumber} | Email: ${email}</p>
       </div>
       <a href="${APP_URL}/cases" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
         Przejdź do rejestru spraw

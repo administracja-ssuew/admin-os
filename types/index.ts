@@ -31,7 +31,6 @@ export interface Case {
   title: string
   description: string | null
   case_number: string
-  case_type: string
   status: CaseStatus
   source: string | null
   confidentiality_level: ConfidentialityLevel
@@ -127,16 +126,6 @@ export interface Document {
   created_at: string
   // relacje
   users?: { first_name: string; last_name: string } | null
-}
-
-// ─── WIEDZA ──────────────────────────────────────────────────────
-export interface KnowledgeArticle {
-  id: string
-  title: string
-  content: string | null
-  category: string
-  drive_link: string | null
-  updated_at: string
 }
 
 // ─── DEPARTAMENTY ─────────────────────────────────────────────────
@@ -319,7 +308,6 @@ export interface AgendaItem {
   id: string
   title: string
   notes: string
-  voting_open: boolean
 }
 
 export interface MeetingProtocol {

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { caseNumber, caseTitle, caseType, contactEmail } = payload
+    const { caseNumber, caseTitle, contactEmail } = payload
 
     // Fetch admins for in-app notifications
     const { data: admins } = await supabase
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
       const adminEmails = admins.map((a: { email: string }) => a.email).filter(Boolean)
       if (adminEmails.length > 0) {
-        const adminTpl = externalSubmissionAdminTemplate(caseNumber, caseTitle, contactEmail, caseType)
+        const adminTpl = externalSubmissionAdminTemplate(caseNumber, caseTitle, contactEmail)
         await sendEmail({ to: adminEmails, subject: adminTpl.subject, html: adminTpl.html })
       }
     }

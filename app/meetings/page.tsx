@@ -1,30 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import SkeletonLoader from '../../components/SkeletonLoader'
 import {
   Plus, X, Lock, FileText, Paperclip, UploadCloud,
-  UserCheck, ClipboardList, Settings, PlusCircle,
-  Trash2, ChevronDown, ChevronUp, Vote, CheckCircle2,
+  UserCheck, ClipboardList, PlusCircle,
+  Trash2, ChevronDown, ChevronUp, CheckCircle2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import type { MeetingProtocol, AttendanceMember, AgendaItem } from '../../types'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
-
-type VoteValue = 'for' | 'against' | 'abstain'
-
-interface MeetingVote {
-  id: string
-  protocol_id: string
-  agenda_item_id: string
-  user_id: string | null
-  user_name: string
-  vote: VoteValue
-}
 
 type DrawerTab = 'general' | 'attendance' | 'agenda' | 'protocol'
 
@@ -39,31 +28,12 @@ const EMPTY_FORM = {
   actions: '',
 }
 
-const VOTE_CONFIG: Record<VoteValue, { label: string; color: string; bg: string; activeBg: string }> = {
-  for:     { label: 'ZA',         color: 'text-green-700 dark:text-green-300', bg: 'border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20', activeBg: 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/30' },
-  against: { label: 'PRZECIW',    color: 'text-red-700 dark:text-red-300',   bg: 'border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20',     activeBg: 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/30' },
-  abstain: { label: 'WSTRZYMUJĘ', color: 'text-slate-600 dark:text-slate-300', bg: 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50', activeBg: 'bg-slate-500 border-slate-500 text-white shadow-lg' },
-}
-
 const TAB_CONFIG: { id: DrawerTab; label: string }[] = [
   { id: 'general',    label: 'Ogólne'    },
   { id: 'attendance', label: 'Obecność'  },
-  { id: 'agenda',     label: 'Głosowania'},
+  { id: 'agenda',     label: 'Porządek obrad'},
   { id: 'protocol',   label: 'Protokół'  },
 ]
-
-// ─── VOTE COUNTS HELPER ───────────────────────────────────────────────────────
-
-function getVoteCounts(votes: MeetingVote[], itemId: string) {
-  const itemVotes = votes.filter(v => v.agenda_item_id === itemId)
-  return {
-    for:     itemVotes.filter(v => v.vote === 'for').length,
-    against: itemVotes.filter(v => v.vote === 'against').length,
-    abstain: itemVotes.filter(v => v.vote === 'abstain').length,
-    total:   itemVotes.length,
-    votes:   itemVotes,
-  }
-}
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
@@ -94,12 +64,6 @@ export default function MeetingsPage() {
   const [newAgendaTitle, setNewAgendaTitle]       = useState('')
   const [expandedItem, setExpandedItem]           = useState<string | null>(null)
 
-  // Votes (Realtime)
-  const [allVotes, setAllVotes]   = useState<MeetingVote[]>([])
-  const [myVotes, setMyVotes]     = useState<Record<string, VoteValue>>({})  // itemId→vote
-  const [casting, setCasting]     = useState<Record<string, boolean>>({})     // itemId→loading
-  const realtimeChannel           = useRef<ReturnType<typeof supabase.channel> | null>(null)
-
   // ─── FETCH ──────────────────────────────────────────────────────────────────
 
   const fetchProtocols = useCallback(async () => {
@@ -122,56 +86,6 @@ export default function MeetingsPage() {
 
   useEffect(() => { fetchProtocols(); fetchUsers() }, [fetchProtocols, fetchUsers])
 
-  // ─── REALTIME VOTES ────────────────────────────────────────────────────────
-
-  const subscribeToVotes = useCallback(async (protocolId: string) => {
-    // Fetch existing votes
-    const { data } = await supabase
-      .from('meeting_votes')
-      .select('*')
-      .eq('protocol_id', protocolId)
-    if (data) {
-      setAllVotes(data as MeetingVote[])
-      if (user?.id) {
-        const mine: Record<string, VoteValue> = {}
-        data.filter(v => v.user_id === user.id).forEach(v => { mine[v.agenda_item_id] = v.vote as VoteValue })
-        setMyVotes(mine)
-      }
-    }
-
-    // Subscribe to realtime changes
-    if (realtimeChannel.current) {
-      supabase.removeChannel(realtimeChannel.current)
-    }
-    const channel = supabase
-      .channel(`meeting-votes-${protocolId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'meeting_votes',
-        filter: `protocol_id=eq.${protocolId}`,
-      }, (payload) => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const newVote = payload.new as MeetingVote
-          setAllVotes(prev => {
-            const filtered = prev.filter(v => !(v.agenda_item_id === newVote.agenda_item_id && v.user_id === newVote.user_id))
-            return [...filtered, newVote]
-          })
-        } else if (payload.eventType === 'DELETE') {
-          setAllVotes(prev => prev.filter(v => v.id !== payload.old.id))
-        }
-      })
-      .subscribe()
-    realtimeChannel.current = channel
-  }, [user?.id])
-
-  const unsubscribeVotes = useCallback(() => {
-    if (realtimeChannel.current) {
-      supabase.removeChannel(realtimeChannel.current)
-      realtimeChannel.current = null
-    }
-  }, [])
-
   // ─── OPEN / CLOSE DRAWER ──────────────────────────────────────────────────
 
   const openDrawer = (protocol: MeetingProtocol) => {
@@ -185,19 +99,14 @@ export default function MeetingsPage() {
     setAgendaItems(protocol.agenda_items ?? [])
     setActiveTab('general')
     setExpandedItem(null)
-    setAllVotes([])
-    setMyVotes({})
     setIsDrawerOpen(true)
-    subscribeToVotes(protocol.id)
   }
 
   const closeDrawer = () => {
     setIsDrawerOpen(false)
-    unsubscribeVotes()
     setTimeout(() => setSelectedProtocol(null), 300)
   }
 
-  useEffect(() => () => unsubscribeVotes(), [unsubscribeVotes])
 
   const isFinalized = selectedProtocol?.protocol_status === 'finalized'
   const isAdmin = user?.system_role === 'admin' || user?.system_role === 'superadmin'
@@ -292,7 +201,7 @@ export default function MeetingsPage() {
 
   const addAgendaItem = async () => {
     if (!newAgendaTitle.trim() || isFinalized) return
-    const item: AgendaItem = { id: crypto.randomUUID(), title: newAgendaTitle.trim(), notes: '', voting_open: false }
+    const item: AgendaItem = { id: crypto.randomUUID(), title: newAgendaTitle.trim(), notes: '' }
     const updated = [...agendaItems, item]
     await saveAgenda(updated)
     setNewAgendaTitle('')
@@ -308,52 +217,6 @@ export default function MeetingsPage() {
   const removeAgendaItem = async (itemId: string) => {
     if (isFinalized) return
     await saveAgenda(agendaItems.filter(it => it.id !== itemId))
-  }
-
-  const toggleVoting = async (itemId: string) => {
-    if (!isAdmin || isFinalized) return
-    const item = agendaItems.find(it => it.id === itemId)
-    if (!item) return
-    const nowOpen = !item.voting_open
-    await updateAgendaItem(itemId, { voting_open: nowOpen })
-    if (nowOpen) {
-      toast.success('Głosowanie otwarte — uczestnicy mogą głosować')
-    } else {
-      toast('Głosowanie zamknięte')
-    }
-  }
-
-  // ─── CAST VOTE ───────────────────────────────────────────────────────────
-
-  const castVote = async (itemId: string, vote: VoteValue) => {
-    if (!user || !selectedProtocol) return
-    // If clicking the same vote again — remove it (toggle off)
-    if (myVotes[itemId] === vote) {
-      await supabase.from('meeting_votes')
-        .delete()
-        .eq('protocol_id', selectedProtocol.id)
-        .eq('agenda_item_id', itemId)
-        .eq('user_id', user.id)
-      setMyVotes(prev => { const n = { ...prev }; delete n[itemId]; return n })
-      return
-    }
-
-    setCasting(prev => ({ ...prev, [itemId]: true }))
-    const userName = `${user.first_name} ${user.last_name}`
-    const { error } = await supabase.from('meeting_votes').upsert({
-      protocol_id: selectedProtocol.id,
-      agenda_item_id: itemId,
-      user_id: user.id,
-      user_name: userName,
-      vote,
-    }, { onConflict: 'protocol_id,agenda_item_id,user_id' })
-
-    if (!error) {
-      setMyVotes(prev => ({ ...prev, [itemId]: vote }))
-    } else {
-      toast.error('Błąd głosowania')
-    }
-    setCasting(prev => ({ ...prev, [itemId]: false }))
   }
 
   // ─── FILE UPLOAD ─────────────────────────────────────────────────────────
@@ -415,7 +278,7 @@ export default function MeetingsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Zebrania</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">Planuj zebrania, prowadź głosowania, rejestruj obecność</p>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">Planuj zebrania, ustalaj porządek obrad, rejestruj obecność</p>
           </div>
           <button onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
@@ -438,7 +301,6 @@ export default function MeetingsPage() {
               const present   = (protocol.attendance   ?? []).filter(m => m.present).length
               const totalAtt  = (protocol.attendance   ?? []).length
               const itemCount = (protocol.agenda_items ?? []).length
-              const openVotes = (protocol.agenda_items ?? []).filter(i => i.voting_open).length
               return (
                 <button key={protocol.id} onClick={() => openDrawer(protocol)}
                   className="text-left bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:border-blue-300 dark:hover:border-blue-600 transition-all hover:shadow-md cursor-pointer">
@@ -456,7 +318,6 @@ export default function MeetingsPage() {
                   <div className="flex flex-wrap gap-3 text-[10px] font-bold text-slate-400 dark:text-slate-500">
                     {totalAtt > 0 && <span className="flex items-center gap-1"><UserCheck size={11}/> {present}/{totalAtt}</span>}
                     {itemCount > 0 && <span className="flex items-center gap-1"><ClipboardList size={11}/> {itemCount} pkt</span>}
-                    {openVotes > 0 && <span className="flex items-center gap-1 text-orange-500 animate-pulse"><Vote size={11}/> głosowanie</span>}
                   </div>
                 </button>
               )
@@ -517,11 +378,6 @@ export default function MeetingsPage() {
                   {attendance.length > 0 && (
                     <span className="text-[10px] font-bold text-slate-400"><UserCheck size={10} className="inline mr-0.5"/>{presentCount}/{attendance.length} obecnych</span>
                   )}
-                  {agendaItems.some(i => i.voting_open) && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 animate-pulse">
-                      <Vote size={10}/> głosowanie aktywne
-                    </span>
-                  )}
                 </div>
                 <h2 className="font-bold text-slate-900 dark:text-white text-base truncate">{selectedProtocol.title}</h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{selectedProtocol.date}</p>
@@ -547,9 +403,6 @@ export default function MeetingsPage() {
                       : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}>
                   {tab.label}
-                  {tab.id === 'agenda' && agendaItems.some(i => i.voting_open) && (
-                    <span className="ml-1.5 w-2 h-2 rounded-full bg-orange-500 inline-block animate-pulse"/>
-                  )}
                 </button>
               ))}
             </div>
@@ -642,11 +495,11 @@ export default function MeetingsPage() {
                 </div>
               )}
 
-              {/* ── GŁOSOWANIA ─────────────────────────────────────────────── */}
+              {/* ── PORZĄDEK OBRAD ─────────────────────────────────────────────── */}
               {activeTab === 'agenda' && (
                 <div className="p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Punkty porządku i głosowania</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Punkty porządku obrad</h3>
                     <span className="text-[10px] text-slate-400">{agendaItems.length} pkt</span>
                   </div>
 
@@ -656,27 +509,15 @@ export default function MeetingsPage() {
                     <div className="space-y-3">
                       {agendaItems.map((item, idx) => {
                         const expanded     = expandedItem === item.id
-                        const counts       = getVoteCounts(allVotes, item.id)
-                        const myVote       = myVotes[item.id]
-                        const isVoteOpen   = item.voting_open
-                        const isCasting    = casting[item.id]
 
                         return (
-                          <div key={item.id} className={`border rounded-2xl overflow-hidden transition-all ${isVoteOpen ? 'border-orange-300 dark:border-orange-700 shadow-md shadow-orange-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
+                          <div key={item.id} className="border rounded-2xl overflow-hidden border-slate-200 dark:border-slate-700">
 
                             {/* Item header */}
-                            <div className={`flex items-center gap-2 p-3.5 ${isVoteOpen ? 'bg-orange-50 dark:bg-orange-900/10' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
+                            <div className="flex items-center gap-2 p-3.5 bg-slate-50 dark:bg-slate-800/50">
                               <span className="text-[11px] font-extrabold text-slate-400 w-5 shrink-0">{idx + 1}.</span>
                               <span className="flex-1 text-sm font-bold text-slate-900 dark:text-white">{item.title}</span>
                               <div className="flex items-center gap-2 shrink-0">
-                                {isVoteOpen && (
-                                  <span className="flex items-center gap-1 text-[10px] font-bold text-orange-600 dark:text-orange-400 animate-pulse">
-                                    <Vote size={12}/> GŁOSOWANIE
-                                  </span>
-                                )}
-                                {counts.total > 0 && !isVoteOpen && (
-                                  <span className="text-[10px] text-slate-400">{counts.total} głosów</span>
-                                )}
                                 {isAdmin && !isFinalized && (
                                   <button onClick={() => removeAgendaItem(item.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1">
                                     <Trash2 size={12}/>
@@ -691,113 +532,6 @@ export default function MeetingsPage() {
                             {/* Expanded */}
                             {expanded && (
                               <div className="p-4 space-y-4">
-
-                                {/* GŁOSOWANIE */}
-                                <div>
-                                  <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                      {isVoteOpen ? '🗳️ Głosowanie otwarte' : 'Głosowanie'}
-                                    </span>
-                                    {isAdmin && !isFinalized && (
-                                      <button onClick={() => toggleVoting(item.id)}
-                                        className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${
-                                          isVoteOpen
-                                            ? 'bg-slate-900 dark:bg-slate-700 text-white hover:bg-red-600'
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        }`}>
-                                        {isVoteOpen ? 'Zamknij głosowanie' : 'Otwórz głosowanie'}
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {isVoteOpen ? (
-                                    /* AKTYWNE GŁOSOWANIE — przyciski dla każdego */
-                                    <div className="space-y-3">
-                                      <div className="grid grid-cols-3 gap-2">
-                                        {(['for', 'against', 'abstain'] as VoteValue[]).map(v => {
-                                          const cfg     = VOTE_CONFIG[v]
-                                          const isMyVote = myVote === v
-                                          return (
-                                            <button key={v} onClick={() => castVote(item.id, v)} disabled={isCasting}
-                                              className={`py-3 rounded-xl border-2 font-extrabold text-xs tracking-wider transition-all ${
-                                                isMyVote ? cfg.activeBg : `${cfg.color} ${cfg.bg} bg-white dark:bg-slate-800`
-                                              } disabled:opacity-50`}>
-                                              {isMyVote && <CheckCircle2 size={14} className="inline mb-0.5 mr-1"/>}
-                                              {cfg.label}
-                                            </button>
-                                          )
-                                        })}
-                                      </div>
-
-                                      {/* Live wyniki */}
-                                      <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Wyniki na żywo — {counts.total} głosów</p>
-                                        <div className="flex gap-3">
-                                          <div className="flex-1 text-center">
-                                            <div className="text-2xl font-extrabold text-green-600 dark:text-green-400">{counts.for}</div>
-                                            <div className="text-[10px] font-bold text-slate-400">ZA</div>
-                                          </div>
-                                          <div className="flex-1 text-center">
-                                            <div className="text-2xl font-extrabold text-red-500 dark:text-red-400">{counts.against}</div>
-                                            <div className="text-[10px] font-bold text-slate-400">PRZECIW</div>
-                                          </div>
-                                          <div className="flex-1 text-center">
-                                            <div className="text-2xl font-extrabold text-slate-500 dark:text-slate-300">{counts.abstain}</div>
-                                            <div className="text-[10px] font-bold text-slate-400">WSTRZ.</div>
-                                          </div>
-                                        </div>
-
-                                        {/* Kto jak głosował */}
-                                        {counts.votes.length > 0 && (
-                                          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1">
-                                            {counts.votes.map(v => (
-                                              <div key={v.id} className="flex items-center justify-between text-xs">
-                                                <span className="text-slate-500 dark:text-slate-400">{v.user_name}</span>
-                                                <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${
-                                                  v.vote === 'for'     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                                                  v.vote === 'against' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
-                                                  'bg-slate-100 dark:bg-slate-700 text-slate-500'
-                                                }`}>
-                                                  {v.vote === 'for' ? 'ZA' : v.vote === 'against' ? 'PRZECIW' : 'WSTRZYM.'}
-                                                </span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ) : counts.total > 0 ? (
-                                    /* ZAMKNIĘTE — podsumowanie */
-                                    <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
-                                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Wynik końcowy — {counts.total} głosów</p>
-                                      <div className="flex gap-3 mb-3">
-                                        <div className="flex-1 text-center">
-                                          <div className="text-xl font-extrabold text-green-600">{counts.for}</div>
-                                          <div className="text-[10px] text-slate-400">ZA</div>
-                                        </div>
-                                        <div className="flex-1 text-center">
-                                          <div className="text-xl font-extrabold text-red-500">{counts.against}</div>
-                                          <div className="text-[10px] text-slate-400">PRZECIW</div>
-                                        </div>
-                                        <div className="flex-1 text-center">
-                                          <div className="text-xl font-extrabold text-slate-500">{counts.abstain}</div>
-                                          <div className="text-[10px] text-slate-400">WSTRZ.</div>
-                                        </div>
-                                      </div>
-                                      {/* Verdict badge */}
-                                      {counts.for > counts.against
-                                        ? <div className="text-center text-xs font-extrabold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg py-1.5">✅ Przyjęto</div>
-                                        : counts.against > counts.for
-                                        ? <div className="text-center text-xs font-extrabold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg py-1.5">❌ Odrzucono</div>
-                                        : <div className="text-center text-xs font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-700 rounded-lg py-1.5">⚖️ Remis</div>
-                                      }
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-slate-400 italic">
-                                      {isAdmin && !isFinalized ? 'Otwórz głosowanie aby uczestnicy mogli oddać głosy.' : 'Brak głosowania dla tego punktu.'}
-                                    </p>
-                                  )}
-                                </div>
 
                                 {/* NOTATKI / DECYZJA */}
                                 <div>

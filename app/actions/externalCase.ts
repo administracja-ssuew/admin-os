@@ -49,7 +49,6 @@ export async function submitExternalCase(payload: {
   id: string
   title: string
   description: string
-  case_type: string
   attachments: { id: string; name: string; url: string; added_at: string }[] | null
 }): Promise<{ caseNumber: string } | { error: string }> {
   const supabase = getServiceClient()
@@ -60,7 +59,6 @@ export async function submitExternalCase(payload: {
       id: payload.id,
       title: payload.title,
       description: payload.description,
-      case_type: payload.case_type,
       source: 'Formularz Zewnętrzny',
       status: 'new',
       confidentiality_level: 'internal',
