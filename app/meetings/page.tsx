@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
+import FileLink from '../../components/FileLink'
 import SkeletonLoader from '../../components/SkeletonLoader'
 import {
   Plus, X, Lock, FileText, Paperclip, UploadCloud,
@@ -593,10 +594,10 @@ export default function MeetingsPage() {
                   <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                     <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Plik protokołu</p>
                     {selectedProtocol?.file_url ? (
-                      <a href={selectedProtocol.file_url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm hover:underline mb-2">
+                      <FileLink href={selectedProtocol.file_url}
+                        className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm hover:underline mb-2 cursor-pointer">
                         <Paperclip size={14}/> {selectedProtocol.file_name ?? 'Plik'}
-                      </a>
+                      </FileLink>
                     ) : (
                       <p className="text-xs text-slate-400 mb-2">Brak pliku</p>
                     )}

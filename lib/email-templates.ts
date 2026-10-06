@@ -111,9 +111,9 @@ export function externalSubmissionConfirmationTemplate(caseNumber: string, title
         Tytuł: <strong>${title}</strong>
       </p>
       <p style="margin:12px 0;color:#475569;font-size:14px;line-height:1.6;">
-        Zachowaj ten numer — możesz go użyć do sprawdzenia statusu wniosku.
+        Zachowaj ten numer — status sprawdzisz, podając go razem z adresem e-mail z wniosku.
       </p>
-      <a href="${APP_URL}/wniosek/status" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
+      <a href="${APP_URL}/wniosek/status?nr=${encodeURIComponent(caseNumber)}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
         Sprawdź status wniosku
       </a>
     `,

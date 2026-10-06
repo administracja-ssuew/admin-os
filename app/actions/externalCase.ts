@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { EXTERNAL_UPLOAD_PREFIX, FILES_BUCKET, externalFileError, sanitizeFileName, storagePath } from '../../lib/files'
 
 function getServiceClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -45,6 +46,21 @@ export async function fetchPublicCalendarEvents(
   ]
 }
 
+/** Jednorazowy link do wysłania pliku z formularza publicznego (magazyn jest prywatny). */
+export async function createExternalUpload(
+  name: string,
+  size: number
+): Promise<{ path: string; token: string; url: string } | { error: string }> {
+  const problem = externalFileError(String(name), Number(size))
+  if (problem) return { error: problem }
+  const supabase = getServiceClient()
+  const path = `${EXTERNAL_UPLOAD_PREFIX}${crypto.randomUUID()}/${sanitizeFileName(String(name))}`
+  const { data, error } = await supabase.storage.from(FILES_BUCKET).createSignedUploadUrl(path)
+  if (error || !data) return { error: 'Nie udało się przygotować wysyłki pliku' }
+  const { data: { publicUrl } } = supabase.storage.from(FILES_BUCKET).getPublicUrl(path)
+  return { path, token: data.token, url: publicUrl }
+}
+
 export async function submitExternalCase(payload: {
   id: string
   title: string
@@ -52,6 +68,13 @@ export async function submitExternalCase(payload: {
   attachments: { id: string; name: string; url: string; added_at: string }[] | null
 }): Promise<{ caseNumber: string } | { error: string }> {
   const supabase = getServiceClient()
+
+  // Przyjmujemy wyłącznie pliki wysłane przez createExternalUpload (folder wnioski/ naszego magazynu)
+  const attachments = (payload.attachments ?? [])
+    .filter(a => typeof a?.url === 'string' && a.url.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL!)
+      && (storagePath(a.url) ?? '').startsWith(EXTERNAL_UPLOAD_PREFIX))
+    .slice(0, 3)
+    .map(a => ({ id: String(a.id), name: String(a.name).slice(0, 200), url: a.url, added_at: String(a.added_at) }))
 
   const { data, error } = await supabase
     .from('cases')
@@ -62,7 +85,7 @@ export async function submitExternalCase(payload: {
       source: 'Formularz Zewnętrzny',
       status: 'new',
       confidentiality_level: 'internal',
-      attachments: payload.attachments,
+      attachments: attachments.length > 0 ? attachments : null,
     }])
     .select('case_number')
     .single()

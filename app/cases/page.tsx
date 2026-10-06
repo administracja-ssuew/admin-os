@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
+import FileLink from '../../components/FileLink'
 import FilterBar, { FilterConfig } from '../../components/FilterBar'
 import FileUpload from '../../components/FileUpload'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -470,10 +471,10 @@ export default function CasesPage() {
                     <p className="text-xs text-slate-400 italic">Brak podpiętych dokumentów.</p>
                   ) : (
                     selectedCase.attachments.map((att: any) => (
-                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-700 transition-colors group">
+                      <FileLink key={att.id} href={att.url} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-700 transition-colors group cursor-pointer">
                         <div className="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0"><FileText size={14} /></div>
                         <span className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors truncate">{att.name}</span>
-                      </a>
+                      </FileLink>
                     ))
                   )}
                 </div>

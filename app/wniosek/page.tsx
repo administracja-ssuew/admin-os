@@ -78,7 +78,7 @@ function SuccessView({ generatedNumber, resetForm }: { generatedNumber: string; 
       </div>
 
       <Link
-        href="/wniosek/status"
+        href={`/wniosek/status?nr=${encodeURIComponent(generatedNumber)}`}
         className="flex items-center justify-center gap-2 w-full py-3 mb-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold rounded-xl text-sm transition-colors border border-blue-200 dark:border-blue-800"
       >
         <Search size={16} /> Sprawdź status wniosku
@@ -488,8 +488,8 @@ export default function PublicIntakePage() {
                         Załączniki <span className="text-slate-300 font-normal normal-case">(max 3 pliki, PDF/PNG/JPG)</span>
                       </label>
                       <FileUpload
-                        bucketPath={`cases/${pendingCaseId}`}
-                        onUploadComplete={files => setUploadedFiles(Array.isArray(files) ? files : [files])}
+                        external
+                        onUploadComplete={file => setUploadedFiles(prev => [...prev, file].slice(0, 3))}
                         accept="application/pdf,image/png,image/jpeg"
                         maxSizeMB={10}
                         maxFiles={3}

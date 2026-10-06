@@ -4,7 +4,7 @@ import Sidebar from '../../components/Sidebar'
 import { Archive, Loader2 } from 'lucide-react'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import { useArchivingData } from '../../hooks/useArchivingData'
-import { ArchivingPanel } from '../../components/subcommittees/ArchivingPanel'
+import { ArchiveFoldersPanel } from '../../components/ArchiveFoldersPanel'
 
 export default function ArchivingPage() {
   const { user: currentUser, isAdmin, loading: userLoading } = useCurrentUser()
@@ -27,10 +27,10 @@ export default function ArchivingPage() {
             <Archive size={28} className="text-blue-500" />
             <div>
               <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Archiwizacja</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Teczki archiwalne i rejestr podań</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Moduł teczek archiwalnych</p>
             </div>
           </div>
-          <ArchivingPanel {...archiving} currentUser={currentUser} isAdmin={isAdmin} onRefetch={archiving.refetch} />
+          <ArchiveFoldersPanel {...archiving} currentUser={currentUser} isAdmin={isAdmin} onRefetch={archiving.refetch} />
         </div>
       </main>
     </div>

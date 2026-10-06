@@ -19,7 +19,8 @@ Next.js 16.2.1 App Router, React 19.2.4, TypeScript strict, Tailwind CSS 4, luci
 | app/wniosek, app/wniosek/status | Publiczny wniosek i podgląd statusu |
 | app/meetings | Zebrania, obecność, porządek obrad, protokoły |
 | app/tasks, app/calendar | Zadania i kalendarz |
-| app/archiving, components/subcommittees | Archiwizacja (teczki, podania); `/my-department` tylko przekierowuje. Panele Logistyki i Grantów nieużywane w UI |
+| app/archiving, components/ArchiveFoldersPanel.tsx | Archiwizacja — Moduł Teczek; `/my-department` tylko przekierowuje |
+| lib/files.ts, components/FileLink.tsx | Prywatny magazyn plików: ścieżki, linki podpisane, wysyłka z formularza publicznego |
 | lib/dashboard.ts | Reguły dashboardu: pilność, widoczność na Tablicy, sortowanie |
 | app/cred, app/api/cred | Integracja CRED przez serwer |
 | app/documents, app/executive, app/users, app/brainstorm | Dokumenty, kierownictwo, kadry, burza mózgów |

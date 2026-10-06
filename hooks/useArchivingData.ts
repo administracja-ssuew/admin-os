@@ -2,31 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import type { ArchiveFolder, Petition } from '../types'
+import type { ArchiveFolder } from '../types'
 
 export interface UseArchivingDataResult {
   archiveFolders: ArchiveFolder[]
-  petitions: Petition[]
   loading: boolean
   refetch: () => Promise<void>
 }
 
 export function useArchivingData(): UseArchivingDataResult {
   const [archiveFolders, setArchiveFolders] = useState<ArchiveFolder[]>([])
-  const [petitions, setPetitions] = useState<Petition[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-
-    const [foldersRes, petitionsRes] = await Promise.all([
-      supabase.from('archive_folders').select('*').order('created_at', { ascending: false }),
-      supabase.from('petitions').select('*').order('submission_date', { ascending: false }),
-    ])
-
-    if (foldersRes.data) setArchiveFolders(foldersRes.data)
-    if (petitionsRes.data) setPetitions(petitionsRes.data)
-
+    const { data } = await supabase.from('archive_folders').select('*').order('created_at', { ascending: false })
+    if (data) setArchiveFolders(data)
     setLoading(false)
   }, [])
 
@@ -34,5 +25,5 @@ export function useArchivingData(): UseArchivingDataResult {
     fetchData()
   }, [fetchData])
 
-  return { archiveFolders, petitions, loading, refetch: fetchData }
+  return { archiveFolders, loading, refetch: fetchData }
 }

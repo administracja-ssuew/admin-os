@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import { Users, ShieldCheck, UserX, Clock, Building2, ChevronRight, ChevronLeft, UserCheck, AlertTriangle, Tag, X, Plus, User, Mail, Shield, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { logAudit } from '../../lib/audit'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -48,7 +49,7 @@ export default function UsersPage() {
     if (!selectedUser) return
     const toastId = toast.loading('Zapisywanie profilu...')
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .update({
         first_name: editForm.first_name,
@@ -59,9 +60,21 @@ export default function UsersPage() {
         tags: editForm.tags
       })
       .eq('id', selectedUser.id)
+      .select('id')
 
-    if (!error) {
-      toast.success('Zapisano!', { id: toastId })
+    // RLS nie zgłasza błędu przy braku uprawnień — po prostu nie zmienia żadnego wiersza
+    if (!error && data?.length) {
+      if (editForm.system_role !== selectedUser.system_role) {
+        await logAudit({
+          userId: currentUser?.id ?? null,
+          action: 'user.role_change',
+          entityType: 'user',
+          entityId: selectedUser.id,
+          oldValue: { system_role: selectedUser.system_role },
+          newValue: { system_role: editForm.system_role },
+        })
+      }
+      toast.success(selectedUser.system_role === 'inactive' ? 'Konto przywrócone!' : 'Zapisano!', { id: toastId })
       setSelectedUser(null)
       fetchData()
     } else {
@@ -73,8 +86,17 @@ export default function UsersPage() {
   const handleSuspendUser = async (userId: string) => {
     if(!confirm('Czy na pewno chcesz zawiesić to konto?')) return
     const toastId = toast.loading('Zawieszanie...')
-    const { error } = await supabase.from('users').update({ system_role: 'inactive', department_id: null }).eq('id', userId)
-    if(!error) {
+    const previousRole = users.find(u => u.id === userId)?.system_role ?? null
+    const { data, error } = await supabase.from('users').update({ system_role: 'inactive', department_id: null }).eq('id', userId).select('id')
+    if(!error && data?.length) {
+      await logAudit({
+        userId: currentUser?.id ?? null,
+        action: 'user.role_change',
+        entityType: 'user',
+        entityId: userId,
+        oldValue: { system_role: previousRole },
+        newValue: { system_role: 'inactive' },
+      })
       toast.success('Konto zawieszone.', { id: toastId })
       setSelectedUser(null)
       fetchData()
@@ -90,7 +112,8 @@ export default function UsersPage() {
       first_name: user.first_name,
       last_name: user.last_name,
       department_id: user.department_id || '',
-      system_role: user.system_role === 'pending' ? 'member' : user.system_role,
+      // Zatwierdzenie oczekującego i przywrócenie zawieszonego domyślnie nadaje rolę członka
+      system_role: ['pending', 'inactive'].includes(user.system_role) ? 'member' : user.system_role,
       org_function: user.org_function || '',
       tags: user.tags || []
     })
@@ -243,7 +266,21 @@ export default function UsersPage() {
                   <h2 className="text-sm font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2"><UserX size={16}/> Konta Zawieszone ({inactiveUsers.length})</h2>
                 </div>
                 <div className="p-4 text-xs text-slate-500 dark:text-slate-400">
-                  {inactiveUsers.map(u => <span key={u.id} className="inline-block mr-3 mb-1 px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">{u.first_name} {u.last_name}</span>)}
+                  {inactiveUsers.map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => openEditor(u)}
+                      title={`${u.email} — kliknij, aby przywrócić lub edytować`}
+                      className={`inline-block mr-3 mb-1 px-2 py-1 border rounded transition-colors ${
+                        selectedUser?.id === u.id
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-600'
+                      }`}
+                    >
+                      {u.first_name} {u.last_name}
+                    </button>
+                  ))}
+                  <p className="mt-2 text-[11px] text-slate-400">Kliknij osobę, aby sprawdzić konto i je przywrócić.</p>
                 </div>
               </div>
             )}
@@ -259,9 +296,14 @@ export default function UsersPage() {
                   <div className="flex flex-col h-full max-h-[85vh] overflow-y-auto custom-scrollbar">
                     <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                       <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-                        {selectedUser.system_role === 'pending' ? 'Weryfikacja Nowego' : 'Edycja Profilu'}
+                        {selectedUser.system_role === 'pending' ? 'Weryfikacja Nowego' : selectedUser.system_role === 'inactive' ? 'Konto zawieszone' : 'Edycja Profilu'}
                       </h2>
                       <p className="text-xs font-mono text-slate-400 dark:text-slate-500">{selectedUser.email}</p>
+                      {selectedUser.system_role === 'inactive' && (
+                        <p className="mt-3 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <AlertTriangle size={14} className="shrink-0" /> Ta osoba nie ma dostępu do systemu. Wybierz rolę i przywróć konto.
+                        </p>
+                      )}
                     </div>
                     
                     <div className="p-6 space-y-4">
@@ -318,7 +360,7 @@ export default function UsersPage() {
 
                     <div className="p-6 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 mt-auto flex flex-col gap-3">
                       <button onClick={handleSaveUser} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all">
-                        Zapisz i Zatwierdź
+                        {selectedUser.system_role === 'inactive' ? 'Przywróć konto' : 'Zapisz i Zatwierdź'}
                       </button>
                       {selectedUser.system_role !== 'pending' && selectedUser.system_role !== 'inactive' && (
                         <button onClick={() => handleSuspendUser(selectedUser.id)} className="w-full py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-500 border border-red-100 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/40 font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2">

@@ -4,21 +4,8 @@ import { useState, useRef } from 'react'
 import { Upload, X, FileIcon, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
-
-/** Zamienia polskie znaki i spacje na bezpieczne odpowiedniki */
-export function sanitizeFileName(name: string): string {
-  return name
-    .replace(/ą/g, 'a').replace(/Ą/g, 'A')
-    .replace(/ć/g, 'c').replace(/Ć/g, 'C')
-    .replace(/ę/g, 'e').replace(/Ę/g, 'E')
-    .replace(/ł/g, 'l').replace(/Ł/g, 'L')
-    .replace(/ń/g, 'n').replace(/Ń/g, 'N')
-    .replace(/ó/g, 'o').replace(/Ó/g, 'O')
-    .replace(/ś/g, 's').replace(/Ś/g, 'S')
-    .replace(/ź/g, 'z').replace(/Ź/g, 'Z')
-    .replace(/ż/g, 'z').replace(/Ż/g, 'Z')
-    .replace(/[^a-zA-Z0-9.\-_]/g, '_')
-}
+import { FILES_BUCKET, sanitizeFileName } from '../lib/files'
+import { createExternalUpload } from '../app/actions/externalCase'
 
 export interface UploadedFile {
   id: string
@@ -28,7 +15,10 @@ export interface UploadedFile {
 }
 
 interface FileUploadProps {
-  bucketPath: string
+  /** Folder w magazynie (dla zalogowanych); formularz publiczny używa `external`. */
+  bucketPath?: string
+  /** Wysyłka bez logowania przez link wydany przez serwer (folder wnioski/). */
+  external?: boolean
   onUploadComplete: (file: UploadedFile) => void
   accept?: string
   maxSizeMB?: number
@@ -37,7 +27,8 @@ interface FileUploadProps {
 }
 
 export default function FileUpload({
-  bucketPath,
+  bucketPath = 'uploads',
+  external = false,
   onUploadComplete,
   accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx',
   maxSizeMB = 10,
@@ -63,21 +54,30 @@ export default function FileUpload({
       const toastId = toast.loading(`Wysyłanie: ${file.name}...`)
 
       try {
-        const safeName = sanitizeFileName(file.name)
-        const filePath = `${bucketPath}/${crypto.randomUUID()}/${safeName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('adminos-files')
-          .upload(filePath, file, { contentType: file.type })
-
-        if (uploadError) throw uploadError
-
-        const { data } = supabase.storage.from('adminos-files').getPublicUrl(filePath)
+        let url: string
+        if (external) {
+          // Formularz publiczny: serwer sprawdza plik i wydaje jednorazowy link do wysyłki
+          const slot = await createExternalUpload(file.name, file.size)
+          if ('error' in slot) throw new Error(slot.error)
+          const { error: uploadError } = await supabase.storage
+            .from(FILES_BUCKET)
+            .uploadToSignedUrl(slot.path, slot.token, file, { contentType: file.type })
+          if (uploadError) throw uploadError
+          url = slot.url
+        } else {
+          const filePath = `${bucketPath}/${crypto.randomUUID()}/${sanitizeFileName(file.name)}`
+          const { error: uploadError } = await supabase.storage
+            .from(FILES_BUCKET)
+            .upload(filePath, file, { contentType: file.type })
+          if (uploadError) throw uploadError
+          // Adres służy jako wskazanie pliku; otwierany jest linkiem podpisanym (FileLink)
+          url = supabase.storage.from(FILES_BUCKET).getPublicUrl(filePath).data.publicUrl
+        }
 
         const uploaded: UploadedFile = {
           id: crypto.randomUUID(),
           name: file.name,
-          url: data.publicUrl,
+          url,
           added_at: new Date().toISOString(),
         }
 

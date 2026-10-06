@@ -195,79 +195,9 @@ export interface NotificationPreference {
   email_external_submission: boolean
 }
 
-// ─── TYPY MY-DEPARTMENT (Phase 2 Refactor) ────────────────────
+// ─── DZIAŁY I ARCHIWIZACJA ───────────────────────────────────
 
 export type DeptType = 'logistics' | 'archiving' | 'grants'
-
-export type AssetStatus = 'available' | 'low_stock' | 'maintenance'
-export type AssetType = 'Artykuły biurowe' | 'Sprzęt IT' | 'Meble' | 'Audio-Video' | 'Inne'
-
-export interface Asset {
-  id: string
-  name: string
-  asset_type: AssetType
-  status: AssetStatus
-  location: string | null
-  notes: string | null
-  quantity: number
-  min_quantity: number
-  unit: 'szt' | 'ryza' | 'opak' | 'komplet'
-  created_at: string
-}
-
-export type LoanStatus = 'Wypożyczone' | 'Zwrócone'
-export type LoanItemCategory = 'Namiot Plenerowy' | 'Sprzęt Audio' | 'Projektor' | 'Meble' | 'Inne'
-
-export interface EquipmentLoan {
-  id: string
-  agreement_number: string | null
-  item_category: LoanItemCategory
-  borrower_name: string
-  borrower_phone: string | null
-  borrower_org: string | null
-  loan_source: string | null
-  issue_date: string
-  return_date: string | null
-  status: LoanStatus
-  notes: string | null
-  created_at: string
-}
-
-export type GrantStatus = 'RADAR' | 'W TOKU' | 'ARCHIWUM'
-export type GrantDecision = 'OCZEKUJE' | 'ZAAKCEPTOWANE' | 'ODRZUCONE'
-export type GrantType = 'DOTACJA' | 'PATRONAT'
-
-export interface EligibilityCriterion {
-  label: string
-  state: 'met' | 'unmet' | 'pending'
-}
-
-export interface Grant {
-  id: string
-  signature: string | null
-  name: string
-  organizer: string | null
-  type: GrantType
-  max_amount: number | null
-  scope: string
-  deadline: string | null
-  status: GrantStatus
-  decision: GrantDecision
-  owner_id: string | null
-  drive_link: string | null
-  description: string | null
-  notes: string | null
-  eligibility_criteria: EligibilityCriterion[]
-  application_url: string | null
-  applied_at: string | null
-  decision_expected_at: string | null
-  patronage_event_name: string | null
-  patronage_event_date: string | null
-  patron_identity: string | null
-  created_at: string
-  // relacje
-  owner?: { first_name: string; last_name: string } | null
-}
 
 export type ArchiveFolderStatus = 'W przygotowaniu' | 'Aktywna' | 'Zamknięta'
 
@@ -284,19 +214,6 @@ export interface ArchiveFolder {
   attachments: CaseAttachment[]
   created_at: string
 }
-
-export type PetitionStatus = 'Złożone' | 'Rozpatrzone' | 'Odrzucone'
-
-export interface Petition {
-  id: string
-  title: string
-  recipient: string
-  submission_date: string
-  status: PetitionStatus
-  attachments: CaseAttachment[]
-  created_at: string
-}
-
 
 export interface AttendanceMember {
   id: string

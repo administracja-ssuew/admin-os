@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
+import FileLink from '../../components/FileLink'
 import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Building2, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Task, TaskStatus, AppUser, Department, Case } from '../../types'
@@ -553,10 +554,10 @@ export default function TasksPage() {
                     <p className="text-xs text-slate-400 italic">Brak podpiętych plików.</p>
                   ) : (
                     selectedTask.attachments.map((att: any) => (
-                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-200 transition-colors group">
+                      <FileLink key={att.id} href={att.url} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-200 transition-colors group cursor-pointer">
                         <div className="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center shrink-0"><FileText size={14}/></div>
                         <span className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{att.name}</span>
-                      </a>
+                      </FileLink>
                     ))
                   )}
                 </div>
