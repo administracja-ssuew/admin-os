@@ -7,6 +7,7 @@ import Sidebar from '../../components/Sidebar'
 import { Shield, Lock, EyeOff, AlertTriangle, Briefcase, ChevronRight, Gavel, Check, FileText, Save, Plus, Loader2, User, Clock } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { LoadingRegion, Skeleton } from '../../components/Skeleton'
 
 export default function ExecutiveClientPage() {
   const router = useRouter()
@@ -27,7 +28,7 @@ export default function ExecutiveClientPage() {
   }, [])
 
   const fetchExecutiveData = async () => {
-    setLoading(true)
+    // Odświeżenie po zapisie nie wraca do szkieletu (loading = true tylko na starcie)
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user?.email) {
@@ -130,8 +131,18 @@ export default function ExecutiveClientPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+      <Sidebar />
+      <LoadingRegion label="Ładowanie panelu kierownictwa…" className="flex-1 md:ml-64 p-8 pt-16 md:pt-8 space-y-8">
+        <Skeleton className="h-40 w-full rounded-3xl" />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="space-y-8">
+            <Skeleton className="h-48 rounded-3xl" />
+            <Skeleton className="h-64 rounded-3xl" />
+          </div>
+          <Skeleton className="xl:col-span-2 h-[28rem] rounded-3xl" />
+        </div>
+      </LoadingRegion>
     </div>
   )
 

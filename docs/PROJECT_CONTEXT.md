@@ -22,6 +22,7 @@ Next.js 16.2.1 App Router, React 19.2.4, TypeScript strict, Tailwind CSS 4, luci
 | app/archiving, components/ArchiveFoldersPanel.tsx | Archiwizacja — Moduł Teczek; `/my-department` tylko przekierowuje |
 | lib/files.ts, components/FileLink.tsx | Prywatny magazyn plików: ścieżki, linki podpisane, wysyłka z formularza publicznego |
 | lib/dashboard.ts | Reguły dashboardu: pilność, widoczność na Tablicy, sortowanie |
+| components/Skeleton.tsx | Szkielety ładowania w kształcie widoków (jedyny komponent ładowania danych) |
 | app/cred, app/api/cred | Integracja CRED przez serwer |
 | app/documents, app/executive, app/users, app/brainstorm | Dokumenty, kierownictwo, kadry, burza mózgów |
 | app/scores | System Motywacyjny: bramka serwerowa i interfejs |

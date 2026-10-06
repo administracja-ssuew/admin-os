@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
+import { CalendarSkeleton } from '../../components/Skeleton'
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, CheckSquare, Briefcase, Users } from 'lucide-react'
 
 export default function CalendarPage() {
@@ -139,7 +140,7 @@ export default function CalendarPage() {
             </div>
             
             {loading ? (
-              <div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>
+              <CalendarSkeleton />
             ) : (
               <div className="flex-1 grid grid-cols-7 grid-rows-5 md:grid-rows-6 auto-rows-fr">
                 {blanks.map(b => (

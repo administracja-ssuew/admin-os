@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import { decodeLegacyNote } from '../../lib/cred-notes'
+import { LoadingRegion, Skeleton, TableSkeleton } from '../../components/Skeleton'
 import {
   FileText, RefreshCw, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle, Pause, Search,
@@ -262,9 +263,7 @@ export default function CREDPage() {
           {/* Lista spraw */}
           <div className={`flex flex-col bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden transition-all ${selectedZnak ? 'w-[45%] mr-4' : 'flex-1'}`}>
             {loading && sprawy.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-amber-500" size={32} />
-              </div>
+              <TableSkeleton rows={8} label="Ładowanie spraw CRED…" />
             ) : filtered.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm font-medium">
                 Brak spraw spełniających kryteria.
@@ -331,9 +330,16 @@ export default function CREDPage() {
             <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden">
 
               {detailLoading ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <Loader2 className="animate-spin text-amber-500" size={32} />
-                </div>
+                <LoadingRegion label="Ładowanie szczegółów sprawy…" className="flex-1">
+                  <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 space-y-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-6 w-3/4" />
+                    <div className="grid grid-cols-3 gap-3 pt-2"><Skeleton className="h-8" /><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
+                  </div>
+                  <div className="px-6 py-4 space-y-3">
+                    {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+                  </div>
+                </LoadingRegion>
               ) : szczegoly ? (
                 <div className="flex-1 overflow-y-auto">
 

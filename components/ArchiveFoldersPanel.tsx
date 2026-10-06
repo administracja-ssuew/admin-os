@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
 import { FILES_BUCKET, sanitizeFileName } from '../lib/files'
 import FileLink from './FileLink'
-import SkeletonLoader from './SkeletonLoader'
+import { CardGridSkeleton } from './Skeleton'
 import EmptyState from './EmptyState'
 import toast from 'react-hot-toast'
 import {
@@ -173,6 +173,7 @@ export function ArchiveFoldersPanel({
           </button>
         </div>
         <div className="p-6">
+          {loading && archiveFolders.length === 0 ? <CardGridSkeleton label="Ładowanie teczek…" /> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {archiveFolders.map(folder => (
               <div
@@ -215,15 +216,13 @@ export function ArchiveFoldersPanel({
                 </div>
               </div>
             ))}
-            {loading && (
-              <div className="col-span-full p-4"><SkeletonLoader variant="card" count={3} /></div>
-            )}
             {!loading && archiveFolders.length === 0 && (
               <div className="col-span-full">
                 <EmptyState title="Brak teczek archiwalnych" description="Utwórz pierwszą teczkę dla sprawy lub raportu" actionLabel="Nowa teczka" onAction={() => setIsArchiveModalOpen(true)} />
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 

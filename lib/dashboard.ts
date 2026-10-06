@@ -2,13 +2,11 @@ interface BoardTask {
   status: string
   deadline: string | null
   owner_id: string | null
-  department_id: string | null
   is_zarzad: boolean
 }
 
 interface BoardUser {
   id: string
-  department_id: string | null
 }
 
 /** YYYY-MM-DD in the browser's time zone; toISOString() would shift late-evening dates to UTC. */
@@ -29,10 +27,8 @@ export function isUrgentTask(task: BoardTask, today: string): boolean {
 export function isVisibleOnBoard(task: BoardTask, user: BoardUser | null, isAdmin: boolean): boolean {
   if (task.is_zarzad) return false
   if (isAdmin) return true
-  const isMine = !!user && task.owner_id === user.id
-  const isMyDept = !!user && task.department_id === user.department_id
-  const isGlobal = !task.department_id && !task.owner_id
-  return isMine || isMyDept || isGlobal
+  // Członek widzi swoje zadania i zadania nieprzypisane (wspólne)
+  return !task.owner_id || (!!user && task.owner_id === user.id)
 }
 
 export function sortTasksForOverview<T extends BoardTask>(tasks: T[]): T[] {

@@ -4,7 +4,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePathname, useRouter } from 'next/navigation'
-import { ShieldAlert, Loader2, LogOut, RefreshCw } from 'lucide-react'
+import { ShieldAlert, LogOut, RefreshCw } from 'lucide-react'
+import { AppShellSkeleton } from './Skeleton'
 
 const ADMIN_ROUTES = ['/executive', '/users']
 const PUBLIC_ROUTES = ['/login', '/wniosek']
@@ -83,14 +84,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   // Trasy publiczne — wpuszczamy każdego
   if (PUBLIC_ROUTES.includes(pathname) || PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))) return <>{children}</>
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center">
-        <Loader2 size={48} className="animate-spin text-blue-500 mb-4" />
-        <p className="text-slate-400 text-sm font-bold tracking-widest uppercase">Weryfikacja tożsamości...</p>
-      </div>
-    )
-  }
+  if (status === 'loading') return <AppShellSkeleton />
 
   if (status === 'unauthenticated') return null // Czeka na przekierowanie do /login
 

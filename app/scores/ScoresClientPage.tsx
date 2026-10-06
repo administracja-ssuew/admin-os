@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { ListSkeleton } from '../../components/Skeleton'
 import { useScoresAccess } from '../../hooks/useScoresAccess'
 import ScoresAccessPanel from '../../components/ScoresAccessPanel'
 
@@ -23,7 +24,6 @@ interface Member {
   org_function: string | null
   system_role: string
   personal_limit: number | null
-  departments: { name: string } | null
 }
 
 interface ScoreRow {
@@ -86,7 +86,7 @@ export default function ScoresClientPage() {
       // Pobierz wszystkich aktywnych Członków (active, member, admin, superadmin)
       const { data: membersData, error: membersError } = await supabase
         .from('users')
-        .select('id, first_name, last_name, email, org_function, system_role, personal_limit, departments(name)')
+        .select('id, first_name, last_name, email, org_function, system_role, personal_limit')
         .in('system_role', ['active', 'member', 'admin', 'superadmin'])
         .order('last_name', { ascending: true })
 
@@ -322,9 +322,7 @@ export default function ScoresClientPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
-            </div>
+            <ListSkeleton rows={6} tone="dark" label="Ładowanie ocen…" />
           ) : (
             <div className="divide-y divide-slate-800">
               {members.map(member => {
@@ -348,7 +346,7 @@ export default function ScoresClientPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-white text-sm">{member.first_name} {member.last_name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{member.departments?.name || 'Brak podkomisji'}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{member.org_function || 'Członek'}</p>
                         </div>
                       </div>
 

@@ -7,12 +7,10 @@ export interface AppUser {
   first_name: string
   last_name: string
   system_role: SystemRole
-  department_id: string | null
   org_function: string | null
   tags: string[]
   created_at: string
   // relacje
-  departments?: { name: string } | null
 }
 
 // ─── SPRAWY ──────────────────────────────────────────────────────
@@ -35,13 +33,11 @@ export interface Case {
   source: string | null
   confidentiality_level: ConfidentialityLevel
   owner_id: string | null
-  department_id: string | null
   cred_signature: string | null
   attachments: CaseAttachment[]
   created_at: string
   // relacje
   users?: { first_name: string; last_name: string } | null
-  departments?: { name: string } | null
 }
 
 export interface CaseComment {
@@ -78,7 +74,6 @@ export interface Task {
   status: TaskStatus
   priority: TaskPriority
   owner_id: string | null
-  department_id: string | null
   project_id: string | null
   case_id: string | null
   deadline: string | null
@@ -93,7 +88,6 @@ export interface Task {
   // relacje
   owner?: { first_name: string; last_name: string } | null
   users?: { first_name: string; last_name: string } | null
-  departments?: { name: string } | null
   projects?: { name: string } | null
   cases?: { title: string; case_number: string } | null
 }
@@ -126,13 +120,6 @@ export interface Document {
   created_at: string
   // relacje
   users?: { first_name: string; last_name: string } | null
-}
-
-// ─── DEPARTAMENTY ─────────────────────────────────────────────────
-export interface Department {
-  id: string
-  name: string
-  dept_type: DeptType | null
 }
 
 // ─── DECYZJE (PANEL ZARZĄDU) ──────────────────────────────────────
@@ -184,20 +171,7 @@ export interface Notification {
   created_at: string
 }
 
-export interface NotificationPreference {
-  id: string
-  user_id: string
-  email_task_assigned: boolean
-  email_case_status: boolean
-  email_case_comment: boolean
-  email_new_meeting: boolean
-  email_deadline_reminder: boolean
-  email_external_submission: boolean
-}
-
-// ─── DZIAŁY I ARCHIWIZACJA ───────────────────────────────────
-
-export type DeptType = 'logistics' | 'archiving' | 'grants'
+// ─── ARCHIWIZACJA ───────────────────────────────────────────────
 
 export type ArchiveFolderStatus = 'W przygotowaniu' | 'Aktywna' | 'Zamknięta'
 

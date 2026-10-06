@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import FileLink from '../../components/FileLink'
-import SkeletonLoader from '../../components/SkeletonLoader'
+import { CardGridSkeleton } from '../../components/Skeleton'
 import {
   Plus, X, Lock, FileText, Paperclip, UploadCloud,
   UserCheck, ClipboardList, PlusCircle,
@@ -289,7 +289,7 @@ export default function MeetingsPage() {
 
         {/* List */}
         {loading ? (
-          <SkeletonLoader variant="card" count={3} />
+          <CardGridSkeleton label="Ładowanie zebrań…" />
         ) : protocols.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <FileText className="w-12 h-12 mb-3 opacity-40" />

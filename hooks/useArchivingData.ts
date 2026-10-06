@@ -14,8 +14,8 @@ export function useArchivingData(): UseArchivingDataResult {
   const [archiveFolders, setArchiveFolders] = useState<ArchiveFolder[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Odświeżenie nie chowa listy — szkielet tylko przy pierwszym ładowaniu
   const fetchData = useCallback(async () => {
-    setLoading(true)
     const { data } = await supabase.from('archive_folders').select('*').order('created_at', { ascending: false })
     if (data) setArchiveFolders(data)
     setLoading(false)

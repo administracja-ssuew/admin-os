@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
-import { Users, ShieldCheck, UserX, Clock, Building2, ChevronRight, ChevronLeft, UserCheck, AlertTriangle, Tag, X, Plus, User, Mail, Shield, Search } from 'lucide-react'
+import { Users, ShieldCheck, UserX, Clock, ChevronRight, ChevronLeft, UserCheck, AlertTriangle, Tag, X, Plus, User, Mail, Shield, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { logAudit } from '../../lib/audit'
+import { ListSkeleton } from '../../components/Skeleton'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
-  const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   
@@ -18,7 +18,6 @@ export default function UsersPage() {
   const [editForm, setEditForm] = useState({
     first_name: '',
     last_name: '',
-    department_id: '',
     system_role: '',
     org_function: '',
     tags: [] as string[]
@@ -29,7 +28,7 @@ export default function UsersPage() {
   }, [])
 
   const fetchData = async () => {
-    setLoading(true)
+    // Odświeżenie po zapisie nie wraca do szkieletu (loading = true tylko na starcie)
     
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user?.email) {
@@ -37,11 +36,9 @@ export default function UsersPage() {
       if (userData) setCurrentUser(userData)
     }
 
-    const { data: usersData } = await supabase.from('users').select('*, departments(name)').order('created_at', { ascending: false })
-    const { data: deptsData } = await supabase.from('departments').select('*').order('name', { ascending: true })
+    const { data: usersData } = await supabase.from('users').select('*').order('created_at', { ascending: false })
 
     if (usersData) setUsers(usersData)
-    if (deptsData) setDepartments(deptsData)
     setLoading(false)
   }
 
@@ -54,7 +51,6 @@ export default function UsersPage() {
       .update({
         first_name: editForm.first_name,
         last_name: editForm.last_name,
-        department_id: editForm.department_id || null,
         system_role: editForm.system_role,
         org_function: editForm.org_function,
         tags: editForm.tags
@@ -87,7 +83,7 @@ export default function UsersPage() {
     if(!confirm('Czy na pewno chcesz zawiesić to konto?')) return
     const toastId = toast.loading('Zawieszanie...')
     const previousRole = users.find(u => u.id === userId)?.system_role ?? null
-    const { data, error } = await supabase.from('users').update({ system_role: 'inactive', department_id: null }).eq('id', userId).select('id')
+    const { data, error } = await supabase.from('users').update({ system_role: 'inactive' }).eq('id', userId).select('id')
     if(!error && data?.length) {
       await logAudit({
         userId: currentUser?.id ?? null,
@@ -111,7 +107,6 @@ export default function UsersPage() {
     setEditForm({
       first_name: user.first_name,
       last_name: user.last_name,
-      department_id: user.department_id || '',
       // Zatwierdzenie oczekującego i przywrócenie zawieszonego domyślnie nadaje rolę członka
       system_role: ['pending', 'inactive'].includes(user.system_role) ? 'member' : user.system_role,
       org_function: user.org_function || '',
@@ -140,7 +135,7 @@ export default function UsersPage() {
   const inactiveUsers = users.filter(u => u.system_role === 'inactive')
   const activeUsers = users.filter(u =>
     ['active', 'member', 'admin', 'superadmin'].includes(u.system_role) &&
-    (`${u.first_name} ${u.last_name} ${u.email} ${u.departments?.name ?? ''}`).toLowerCase().includes(userSearch.toLowerCase())
+    (`${u.first_name} ${u.last_name} ${u.email} ${u.org_function ?? ''}`).toLowerCase().includes(userSearch.toLowerCase())
   )
   const totalUserPages = Math.max(1, Math.ceil(activeUsers.length / USER_PAGE_SIZE))
   const pagedActiveUsers = activeUsers.slice((userPage - 1) * USER_PAGE_SIZE, userPage * USER_PAGE_SIZE)
@@ -180,7 +175,9 @@ export default function UsersPage() {
                   {pendingUsers.length > 0 && <span className="flex h-3 w-3"><span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-orange-400 dark:bg-orange-500 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500 dark:bg-orange-400"></span></span>}
                 </div>
                 
-                {pendingUsers.length > 0 ? (
+                {loading ? (
+                  <ListSkeleton rows={2} label="Ładowanie poczekalni…" />
+                ) : pendingUsers.length > 0 ? (
                   <ul className="divide-y divide-orange-50 dark:divide-orange-900/30">
                     {pendingUsers.map(user => (
                       <li key={user.id} className="p-4 flex items-center justify-between hover:bg-orange-50/50 dark:hover:bg-orange-900/20 cursor-pointer transition-colors" onClick={() => openEditor(user)}>
@@ -210,9 +207,10 @@ export default function UsersPage() {
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
-                  <input type="text" placeholder="Szukaj po imieniu, e-mailu lub pionie..." className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white transition-colors" value={userSearch} onChange={(e) => { setUserSearch(e.target.value); setUserPage(1) }} />
+                  <input type="text" placeholder="Szukaj po imieniu, e-mailu lub funkcji..." className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white transition-colors" value={userSearch} onChange={(e) => { setUserSearch(e.target.value); setUserPage(1) }} />
                 </div>
               </div>
+              {loading ? <ListSkeleton rows={6} label="Ładowanie członków…" /> : (
               <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
                 {pagedActiveUsers.map(user => (
                   <li key={user.id} className="p-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors group" onClick={() => openEditor(user)}>
@@ -226,7 +224,7 @@ export default function UsersPage() {
                           {user.system_role === 'admin' || user.system_role === 'superadmin' ? <span className="ml-2 text-[10px] bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full uppercase">Zarząd</span> : ''}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Building2 size={12}/> {user.departments ? user.departments.name : 'Brak przypisanego pionu'}
+                          <Mail size={12}/> {user.org_function || user.email}
                         </p>
                       </div>
                     </div>
@@ -244,6 +242,7 @@ export default function UsersPage() {
                   </li>
                 ))}
               </ul>
+              )}
               {totalUserPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 dark:border-slate-700">
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Strona {userPage} z {totalUserPages}</span>
@@ -319,14 +318,6 @@ export default function UsersPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Przypisanie do Pionu</label>
-                        <select className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white" value={editForm.department_id} onChange={(e) => setEditForm({...editForm, department_id: e.target.value})}>
-                          <option value="">Brak (Zawieszony / Oczekujący)</option>
-                          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
-                      </div>
-
-                      <div>
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Funkcja (opcjonalnie)</label>
                         <input type="text" placeholder="np. Koordynator ds. Promocji" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white" value={editForm.org_function} onChange={(e) => setEditForm({...editForm, org_function: e.target.value})} />
                       </div>
@@ -384,10 +375,6 @@ export default function UsersPage() {
                       <div className="flex items-center gap-3 text-sm">
                         <Mail size={16} className="text-slate-400"/>
                         <span className="text-slate-700 dark:text-slate-300">{selectedUser.email}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <Building2 size={16} className="text-slate-400"/>
-                        <span className="text-slate-700 dark:text-slate-300 font-bold">{selectedUser.departments?.name || 'Brak pionu'}</span>
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Shield size={16} className="text-slate-400"/>

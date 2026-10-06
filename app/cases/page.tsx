@@ -12,12 +12,13 @@ import { logAudit } from '../../lib/audit'
 import { sendNotification } from '../../lib/notify'
 import {
   Briefcase, Plus, FileText, Link as LinkIcon, X, Clock, User,
-  Building2, Send, Loader2, Shield, Paperclip, ChevronLeft,
+  Send, Loader2, Shield, Paperclip, ChevronLeft,
   ChevronRight, Trash2, Edit2, Check, ChevronDown, ArrowRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { matchesCaseFilters } from '../../lib/case-filters'
-import type { Case, CaseComment, AppUser, Department } from '../../types'
+import { TableSkeleton } from '../../components/Skeleton'
+import type { Case, CaseComment, AppUser } from '../../types'
 
 
 export default function CasesPage() {
@@ -25,7 +26,6 @@ export default function CasesPage() {
 
   const [cases, setCases] = useState<Case[]>([])
   const [users, setUsers] = useState<AppUser[]>([])
-  const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
 
   const [selectedCase, setSelectedCase] = useState<Case | null>(null)
@@ -47,7 +47,7 @@ export default function CasesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: '', description: '',
-    confidentiality_level: 'internal', owner_id: '', department_id: ''
+    confidentiality_level: 'internal', owner_id: ''
   })
 
   // Filtry
@@ -72,14 +72,12 @@ export default function CasesPage() {
   }, [])
 
   const fetchData = async () => {
-    const [casesRes, usersRes, deptsRes] = await Promise.all([
-      supabase.from('cases').select('*, users(first_name, last_name), departments(name)').order('created_at', { ascending: false }),
+    const [casesRes, usersRes] = await Promise.all([
+      supabase.from('cases').select('*, users(first_name, last_name)').order('created_at', { ascending: false }),
       supabase.from('users').select('*').in('system_role', ['active', 'member', 'admin', 'superadmin']).order('first_name'),
-      supabase.from('departments').select('*').order('name'),
     ])
     if (casesRes.data) setCases(casesRes.data as Case[])
     if (usersRes.data) setUsers(usersRes.data as AppUser[])
-    if (deptsRes.data) setDepartments(deptsRes.data as Department[])
     setLoading(false)
   }
 
@@ -242,13 +240,12 @@ export default function CasesPage() {
       description: formData.description || null,
       confidentiality_level: formData.confidentiality_level,
       owner_id: formData.owner_id || currentUser?.id,
-      department_id: formData.department_id || null,
       case_number: caseNumber,
       status: 'new',
       attachments: []
     }])
     if (!error) {
-      setFormData({ title: '', description: '', confidentiality_level: 'internal', owner_id: '', department_id: '' })
+      setFormData({ title: '', description: '', confidentiality_level: 'internal', owner_id: '' })
       setIsModalOpen(false)
       fetchData()
       toast.success('Sprawa zarejestrowana')
@@ -316,9 +313,7 @@ export default function CasesPage() {
         {/* Tabela */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
           {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
-            </div>
+            <TableSkeleton rows={8} label="Ładowanie spraw…" />
           ) : pagedCases.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-400">
               <Briefcase size={32} />
@@ -353,11 +348,8 @@ export default function CasesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 mb-0.5">
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                         <User size={14} className="text-slate-400" /> {c.users ? `${c.users.first_name} ${c.users.last_name}` : 'Nieprzypisana'}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                        <Building2 size={12} className="text-slate-400" /> {c.departments ? c.departments.name : 'Ogólne'}
                       </div>
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(c.status)}</td>
@@ -623,20 +615,11 @@ export default function CasesPage() {
                     <option value="board_only">Tylko Zarząd</option>
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Przypisz do osoby</label>
                   <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.owner_id} onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}>
                     <option value="">Ja ({currentUser?.first_name})</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pion</label>
-                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.department_id} onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}>
-                    <option value="">Ogólne</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
               </div>

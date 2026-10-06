@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { isUrgentTask, isVisibleOnBoard, localDateString, sortTasksForOverview } from '../lib/dashboard.ts'
 
-const task = { status: 'to_do', deadline: null, owner_id: null, department_id: null, is_zarzad: false }
+const task = { status: 'to_do', deadline: null, owner_id: null, is_zarzad: false }
 
 test('local date string uses the local calendar day, not UTC', () => {
   assert.equal(localDateString(new Date(2026, 9, 6, 0, 30)), '2026-10-06')
@@ -25,13 +25,12 @@ test('tomorrow rolls over month and year boundaries', () => {
   assert.equal(isUrgentTask({ ...task, deadline: '2026-11-02' }, '2026-10-31'), false)
 })
 
-test('board visibility matches the general task board', () => {
-  const me = { id: 'u1', department_id: 'd1' }
+test('board visibility: own and unassigned tasks for members, everything except board tasks for admins', () => {
+  const me = { id: 'u1' }
   assert.equal(isVisibleOnBoard({ ...task, is_zarzad: true, owner_id: 'u1' }, me, true), false)
-  assert.equal(isVisibleOnBoard({ ...task, owner_id: 'u2', department_id: 'd2' }, me, true), true)
-  assert.equal(isVisibleOnBoard({ ...task, owner_id: 'u2', department_id: 'd2' }, me, false), false)
+  assert.equal(isVisibleOnBoard({ ...task, owner_id: 'u2' }, me, true), true)
+  assert.equal(isVisibleOnBoard({ ...task, owner_id: 'u2' }, me, false), false)
   assert.equal(isVisibleOnBoard({ ...task, owner_id: 'u1' }, me, false), true)
-  assert.equal(isVisibleOnBoard({ ...task, department_id: 'd1' }, me, false), true)
   assert.equal(isVisibleOnBoard(task, me, false), true)
   assert.equal(isVisibleOnBoard(task, null, false), true)
 })

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
+import { TableSkeleton } from '../../components/Skeleton'
 import { FileText, Plus, Search, X, Loader2, CheckCircle, AlertTriangle, Clock, MessageSquare, User } from 'lucide-react'
 import toast from 'react-hot-toast' // Importujemy Toasty!
 
@@ -176,7 +177,9 @@ export default function DocumentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
+              {loading ? (
+                <tr><td colSpan={4} className="p-0"><TableSkeleton rows={5} label="Ładowanie dokumentów…" /></td></tr>
+              ) : filteredDocs.length > 0 ? filteredDocs.map((doc) => (
                 <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 font-semibold text-gray-800">{doc.title}</td>
                   <td className="px-6 py-4">

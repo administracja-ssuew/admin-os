@@ -5,10 +5,11 @@ import { supabase } from '../../lib/supabase'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
 import FileLink from '../../components/FileLink'
-import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Building2, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
+import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { Task, TaskStatus, AppUser, Department, Case } from '../../types'
+import type { Task, TaskStatus, AppUser, Case } from '../../types'
 import { sendNotification } from '../../lib/notify'
+import { BoardSkeleton, TableSkeleton } from '../../components/Skeleton'
 import { isVisibleOnBoard } from '../../lib/dashboard'
 
 export default function TasksPage() {
@@ -16,7 +17,6 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [users, setUsers] = useState<AppUser[]>([])
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
-  const [departments, setDepartments] = useState<Department[]>([])
   const [cases, setCases] = useState<Case[]>([])
 
   const [loading, setLoading] = useState(true)
@@ -43,7 +43,7 @@ export default function TasksPage() {
   const [editForm, setEditForm] = useState<any>({})
 
   const [formData, setFormData] = useState({ 
-    title: '', description: '', owner_id: '', department_id: '',
+    title: '', description: '', owner_id: '',
     project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' 
   })
 
@@ -91,21 +91,19 @@ export default function TasksPage() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
+  // Odświeżanie po zmianach nie wraca do szkieletu — tylko pierwsze ładowanie (loading = true na starcie)
   const fetchData = async () => {
-    setLoading(true)
     const { data: tasksData } = await supabase.from('tasks')
-      .select('*, owner:users!tasks_owner_id_fkey(first_name, last_name), projects(name), departments(name), cases(title, case_number)')
+      .select('*, owner:users!tasks_owner_id_fkey(first_name, last_name), projects(name), cases(title, case_number)')
       .order('created_at', { ascending: false })
       
     const { data: usersData } = await supabase.from('users').select('*').order('first_name', { ascending: true })
     const { data: projectsData } = await supabase.from('projects').select('*').order('name', { ascending: true })
-    const { data: deptsData } = await supabase.from('departments').select('*').order('name', { ascending: true })
     const { data: casesData } = await supabase.from('cases').select('*').order('created_at', { ascending: false })
 
     if (tasksData) setTasks(tasksData)
     if (usersData) setUsers(usersData)
     if (projectsData) setProjects(projectsData)
-    if (deptsData) setDepartments(deptsData)
     if (casesData) setCases(casesData)
     
     setLoading(false)
@@ -133,7 +131,7 @@ export default function TasksPage() {
     if (!selectedTask) return
     setEditForm({
       title: selectedTask.title, description: selectedTask.description || '', owner_id: selectedTask.owner_id || '',
-      department_id: selectedTask.department_id || '', deadline: selectedTask.deadline || '', priority: selectedTask.priority
+      deadline: selectedTask.deadline || '', priority: selectedTask.priority
     })
     setIsEditingTask(true)
   }
@@ -143,7 +141,7 @@ export default function TasksPage() {
     const toastId = toast.loading('Zapisywanie zmian...')
     const { error } = await supabase.from('tasks').update({
       title: editForm.title, description: editForm.description, owner_id: editForm.owner_id || null,
-      department_id: editForm.department_id || null, deadline: editForm.deadline || null, priority: editForm.priority
+      deadline: editForm.deadline || null, priority: editForm.priority
     }).eq('id', selectedTask.id)
 
     if (!error) {
@@ -218,13 +216,13 @@ export default function TasksPage() {
     e.preventDefault()
     setIsSubmitting(true)
     const { error } = await supabase.from('tasks').insert([{
-      title: formData.title, description: formData.description, owner_id: formData.owner_id || null, department_id: formData.department_id || null,
+      title: formData.title, description: formData.description, owner_id: formData.owner_id || null,
       project_id: formData.project_id || null, case_id: formData.case_id || null, deadline: formData.deadline || null, priority: formData.priority,
       status: formData.status, checklists: [], attachments: [], completion_percentage: 0,
       is_zarzad: boardMode === 'zarzad',
     }])
     if (!error) {
-      setFormData({ title: '', description: '', owner_id: '', department_id: '', project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' }); setIsModalOpen(false); fetchData(); toast.success('Zadanie wrzucone na tablicę!')
+      setFormData({ title: '', description: '', owner_id: '', project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' }); setIsModalOpen(false); fetchData(); toast.success('Zadanie wrzucone na tablicę!')
       // Powiadomienie do assignee
       if (formData.owner_id) {
         const assignee = users.find(u => u.id === formData.owner_id)
@@ -267,7 +265,6 @@ export default function TasksPage() {
   const TaskCard = ({ task }: { task: any }) => {
     const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'done'
     const isUnassigned = !task.owner_id
-    const isForMyDept = isUnassigned && task.department_id && currentUser?.department_id === task.department_id
 
     return (
       <div
@@ -307,26 +304,10 @@ export default function TasksPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 mt-auto pt-3 border-t border-slate-50 dark:border-slate-700/50 relative z-10">
           <div className="flex-1 min-w-0">
             {isUnassigned ? (
-              task.departments ? (
-                isForMyDept ? (
-                  // Przycisk "Biorę to" TYLKO dla własnego pionu
-                  <button onClick={(e) => claimTask(e, task.id)} title={`Dla: ${task.departments.name}`} className="max-w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white animate-pulse">
-                    <Hand size={12} className="shrink-0"/>
-                    <span className="truncate">Biorę to!</span>
-                  </button>
-                ) : (
-                  // Jeśli jakimś cudem zobaczy to ktoś inny (np. Admin widzi wszystko), nie może tego wziąć jednym kliknięciem
-                  <div title={`Dla: ${task.departments.name}`} className="max-w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm flex items-center gap-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                    <Building2 size={12} className="shrink-0"/>
-                    <span className="truncate">Dla: {task.departments.name}</span>
-                  </div>
-                )
-              ) : (
-                // Zadanie totalnie wolne
-                <button onClick={(e) => claimTask(e, task.id)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md transition-colors flex items-center gap-1 animate-pulse">
-                  <Hand size={12} /> Biorę to!
-                </button>
-              )
+              // Zadanie wolne — każdy członek może je wziąć
+              <button onClick={(e) => claimTask(e, task.id)} className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md transition-colors flex items-center gap-1 animate-pulse">
+                <Hand size={12} /> Biorę to!
+              </button>
             ) : (
               <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
                 <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-[9px] shrink-0">{task.owner ? `${task.owner.first_name.charAt(0)}${task.owner.last_name.charAt(0)}` : '?'}</div>
@@ -357,7 +338,7 @@ export default function TasksPage() {
                 setFormData({
                   title: '', description: '',
                   owner_id: boardMode === 'zarzad' ? (currentUser?.id ?? '') : '',
-                  department_id: '', project_id: '', case_id: '',
+                  project_id: '', case_id: '',
                   deadline: '', status: 'to_do', priority: 'medium'
                 })
                 setIsModalOpen(true)
@@ -401,6 +382,11 @@ export default function TasksPage() {
           </div>
         </div>
 
+        {loading ? (
+          viewMode === 'board'
+            ? <BoardSkeleton />
+            : <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"><TableSkeleton label="Ładowanie zadań…" /></div>
+        ) : (<>
         {viewMode === 'board' && (
           <div className={`flex-1 flex gap-4 overflow-x-auto custom-scrollbar pb-4 items-start rounded-2xl transition-colors ${boardMode === 'zarzad' ? 'bg-amber-50/40 dark:bg-amber-900/5 p-3' : ''}`}>
             {columns.map(col => (
@@ -440,6 +426,7 @@ export default function TasksPage() {
             })}
           </div>
         )}
+        </>)}
       </div>
 
       {isDrawerOpen && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsDrawerOpen(false)} />}
@@ -468,12 +455,9 @@ export default function TasksPage() {
                   <input type="text" className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg text-sm font-bold text-slate-900 dark:text-white outline-none" value={editForm.title} onChange={(e) => setEditForm({...editForm, title: e.target.value})} />
                   <textarea className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg text-sm text-slate-900 dark:text-white outline-none resize-none h-20" value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} />
                   
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <select className="px-2 py-2 border rounded-lg bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white" value={editForm.owner_id} onChange={(e) => setEditForm({...editForm, owner_id: e.target.value, department_id: ''})}>
-                      <option value="">Brak osoby...</option>{users.map((u: any) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
-                    </select>
-                    <select className="px-2 py-2 border rounded-lg bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white disabled:opacity-50" disabled={!!editForm.owner_id} value={editForm.department_id} onChange={(e) => setEditForm({...editForm, department_id: e.target.value})}>
-                      <option value="">LUB Brak Pionu...</option>{departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <div className="text-xs">
+                    <select className="w-full px-2 py-2 border rounded-lg bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white" value={editForm.owner_id} onChange={(e) => setEditForm({...editForm, owner_id: e.target.value})}>
+                      <option value="">Do wzięcia (bez osoby)</option>{users.map((u: any) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
                     </select>
                   </div>
                   
@@ -538,11 +522,10 @@ export default function TasksPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900 flex flex-col gap-6">
-              {(selectedTask.projects || selectedTask.departments || selectedTask.cases) && (
+              {(selectedTask.projects || selectedTask.cases) && (
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm softly-lifted space-y-3">
                   {selectedTask.projects && <div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-500 dark:text-slate-400">Projekt parasolowy:</span><span className="text-xs font-bold bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-2 py-1 rounded flex items-center gap-1"><FolderKanban size={12}/> {selectedTask.projects.name}</span></div>}
                   {selectedTask.cases && <div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-500 dark:text-slate-400">Powiązana Sprawa:</span><span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded flex items-center gap-1"><Briefcase size={12}/> {selectedTask.cases.case_number}</span></div>}
-                  {selectedTask.departments && !selectedTask.owner_id && <div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-500 dark:text-slate-400">Dedykowane dla Pionu:</span><span className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded flex items-center gap-1"><Building2 size={12}/> {selectedTask.departments.name}</span></div>}
                 </div>
               )}
 
@@ -600,7 +583,7 @@ export default function TasksPage() {
             </div>
             <form onSubmit={handleAddTask} className="p-6 space-y-4">
               <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tytuł zadania</label><input type="text" required autoFocus className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} /></div>
-              <div className="grid grid-cols-2 gap-4">
+              <div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                     {boardMode === 'zarzad' ? 'Członek Zarządu' : 'Konkretna Osoba'}
@@ -608,7 +591,7 @@ export default function TasksPage() {
                   <select
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                     value={formData.owner_id}
-                    onChange={(e) => setFormData({...formData, owner_id: e.target.value, department_id: ''})}
+                    onChange={(e) => setFormData({...formData, owner_id: e.target.value})}
                   >
                     <option value="">Do wzięcia!</option>
                     {(boardMode === 'zarzad'
@@ -617,18 +600,6 @@ export default function TasksPage() {
                     ).map((u: any) => (
                       <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lub Do Pionu</label>
-                  <select
-                    disabled={!!formData.owner_id || boardMode === 'zarzad'}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white disabled:opacity-50"
-                    value={formData.department_id}
-                    onChange={(e) => setFormData({...formData, department_id: e.target.value})}
-                  >
-                    <option value="">Wybierz Pion...</option>
-                    {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
               </div>

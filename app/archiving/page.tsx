@@ -1,7 +1,7 @@
 'use client'
 
 import Sidebar from '../../components/Sidebar'
-import { Archive, Loader2 } from 'lucide-react'
+import { Archive } from 'lucide-react'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
 import { useArchivingData } from '../../hooks/useArchivingData'
 import { ArchiveFoldersPanel } from '../../components/ArchiveFoldersPanel'
@@ -9,14 +9,6 @@ import { ArchiveFoldersPanel } from '../../components/ArchiveFoldersPanel'
 export default function ArchivingPage() {
   const { user: currentUser, isAdmin, loading: userLoading } = useCurrentUser()
   const archiving = useArchivingData()
-
-  if (userLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Loader2 size={32} className="animate-spin text-blue-500" />
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -30,7 +22,13 @@ export default function ArchivingPage() {
               <p className="text-sm text-slate-500 dark:text-slate-400">Moduł teczek archiwalnych</p>
             </div>
           </div>
-          <ArchiveFoldersPanel {...archiving} currentUser={currentUser} isAdmin={isAdmin} onRefetch={archiving.refetch} />
+          <ArchiveFoldersPanel
+            {...archiving}
+            loading={archiving.loading || userLoading}
+            currentUser={currentUser}
+            isAdmin={isAdmin}
+            onRefetch={archiving.refetch}
+          />
         </div>
       </main>
     </div>

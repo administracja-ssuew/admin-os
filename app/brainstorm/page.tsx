@@ -6,6 +6,7 @@ import { useCurrentUser } from '../../hooks/useCurrentUser'
 import Sidebar from '../../components/Sidebar'
 import { Lightbulb, Plus, X, Loader2, ShieldAlert, Pencil, Bold, Italic, List } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { CardGridSkeleton } from '../../components/Skeleton'
 import ReactMarkdown from 'react-markdown'
 
 // ─── KOLORY KARTECZEK ────────────────────────────────────────────
@@ -225,7 +226,7 @@ export default function BrainstormPage() {
   }, [])
 
   const fetchData = async () => {
-    setLoading(true)
+    // Odświeżenie po zapisie nie wraca do szkieletu (loading = true tylko na starcie)
 
     const { data: cardsData } = await supabase
       .from('brainstorm_cards')
@@ -403,9 +404,7 @@ export default function BrainstormPage() {
           }}
         >
           {loading || authLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 size={40} className="animate-spin text-yellow-400" />
-            </div>
+            <CardGridSkeleton count={8} label="Ładowanie karteczek…" />
           ) : filteredCards.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center gap-4">
               <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">

@@ -8,7 +8,7 @@ import Sidebar from '../components/Sidebar'
 import { Briefcase, CheckSquare, TrendingUp, Clock, AlertCircle, ArrowRight, User, ListTodo, Inbox } from 'lucide-react'
 import Link from 'next/link'
 import type { Case, Task, TaskStatus } from '../types'
-import SkeletonLoader from '../components/SkeletonLoader'
+import { DashboardSkeleton } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import toast from 'react-hot-toast'
 import { isUrgentTask, isVisibleOnBoard, localDateString, sortTasksForOverview } from '../lib/dashboard'
@@ -188,14 +188,7 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <SkeletonLoader variant="card" count={3} />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SkeletonLoader variant="card" count={4} />
-            </div>
-          </div>
+          <DashboardSkeleton />
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
