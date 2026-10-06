@@ -17,6 +17,7 @@ Test HTTP na lokalnym buildzie: /login i /wniosek odpowiadają 200; HTML wniosku
 - `npm run typecheck`, `npm test` (21 testów, w tym nowe `dashboard` i `cred-notes`), `npm run build` z przykładowym URL/kluczem Supabase: PASS.
 - ESLint zmienionych plików: brak nowych błędów względem bazowego commita (liczniki reguł równe, 2 ostrzeżenia mniej).
 - Nie wykonano testu w przeglądarce z rzeczywistą sesją — lokalnie brak `.env.local`.
+- `tests/rls-cleanup.test.mjs` (PGlite): anon, pending, inactive, member, admin, Storage, sprzątanie struktury i blokada usuwania tabel z danymi. Przed wdrożeniem migrację uruchomiono na produkcji w transakcji z ROLLBACK, z odczytem w imieniu admina, członka i anon.
 
 ## Co sprawdzają testy
 

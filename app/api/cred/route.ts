@@ -5,10 +5,12 @@ const MUTATION_ACTIONS = ['setStatus', 'setOwner', 'setSLA', 'addNote']
 
 type AdminRow = { id: string; system_role: string }
 
-function makeSupabase() {
+// Klient działa w imieniu zalogowanego użytkownika, więc zapytania podlegają RLS jak w przeglądarce
+function makeSupabase(token: string) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
   )
 }
 
@@ -17,7 +19,7 @@ async function authorizeUser(request: Request) {
   const token = request.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return { user: null, supabase: null, error: 'Unauthorized' as const }
 
-  const supabase = makeSupabase()
+  const supabase = makeSupabase(token)
   const { data: { user } } = await supabase.auth.getUser(token)
   if (!user) return { user: null, supabase: null, error: 'Unauthorized' as const }
 
