@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
+import { decodeLegacyNote } from '../../lib/cred-notes'
 import {
   FileText, RefreshCw, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle, Pause, Search,
@@ -430,7 +431,7 @@ export default function CREDPage() {
                           className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-amber-400 resize-none placeholder:text-slate-400"
                         />
                         <button
-                          onClick={() => handleAction('addNote', { text: encodeURIComponent(nowaNotatka) }, 'Notatka zapisana')}
+                          onClick={() => handleAction('addNote', { text: nowaNotatka.trim() }, 'Notatka zapisana')}
                           disabled={actionLoading || !nowaNotatka.trim()}
                           className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                         >
@@ -471,7 +472,7 @@ export default function CREDPage() {
                                 </span>
                               </div>
                               {entry.akcja === 'NOTATKA_WEWNETRZNA' ? (
-                                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{entry.nowa}</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed whitespace-pre-wrap">{decodeLegacyNote(entry.nowa)}</p>
                               ) : entry.nowa ? (
                                 <div className="flex items-center gap-2 mt-1 text-xs">
                                   {entry.stara && <span className="text-slate-400 line-through">{entry.stara}</span>}

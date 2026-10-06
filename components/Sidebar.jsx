@@ -85,13 +85,14 @@ export default function Sidebar() {
 
       {/* Sidebar panel */}
       <div className={[
-        'w-64 bg-slate-900 text-white min-h-screen flex flex-col fixed left-0 top-0 z-[56] shadow-2xl',
+        // Stała wysokość okna: dzięki temu nawigacja przewija się wewnątrz panelu
+        'w-64 bg-slate-900 text-white h-dvh flex flex-col fixed left-0 top-0 z-[56] shadow-2xl',
         'transition-transform duration-300 ease-in-out',
         '-translate-x-full md:translate-x-0',
         isOpen ? 'translate-x-0' : '',
       ].join(' ')}>
 
-        <div className="p-6 border-b border-slate-800">
+        <div className="p-6 border-b border-slate-800 shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-extrabold text-blue-500 tracking-wider">AdminOS</h2>
@@ -111,12 +112,12 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 min-h-0 px-4 py-6 space-y-2 overflow-y-auto overscroll-contain custom-scrollbar">
           <Link href="/" className={getLinkStyle('/')}>📊 Panel Główny</Link>
-          <Link href="/my-department" className={getLinkStyle('/my-department')}>🎯 Moja Podkomisja</Link>
-          <Link href="/cases" className={getLinkStyle('/cases')}>📁 Rejestr Spraw</Link>
           <Link href="/tasks" className={getLinkStyle('/tasks')}>✅ Zadania</Link>
+          <Link href="/cases" className={getLinkStyle('/cases')}>📁 Rejestr Spraw</Link>
           <Link href="/cred" className={getLinkStyle('/cred')}><span className="flex items-center gap-2"><FileText size={16} />CRED</span></Link>
+          <Link href="/archiving" className={getLinkStyle('/archiving')}>🗄️ Archiwizacja</Link>
           <Link href="/meetings" className={getLinkStyle('/meetings')}>📅 Zebrania</Link>
 
           {(userRole === 'admin' || userRole === 'superadmin') && (
@@ -142,7 +143,7 @@ export default function Sidebar() {
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
+        <div className="p-4 border-t border-slate-800 flex flex-col gap-2 shrink-0">
           <button
             onClick={toggleDarkMode}
             className="w-full bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white py-3 px-4 rounded-lg transition-colors font-bold flex items-center justify-between"

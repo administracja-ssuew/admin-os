@@ -8,6 +8,7 @@ import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X
 import toast from 'react-hot-toast'
 import type { Task, TaskStatus, AppUser, Department, Case } from '../../types'
 import { sendNotification } from '../../lib/notify'
+import { isVisibleOnBoard } from '../../lib/dashboard'
 
 export default function TasksPage() {
   const { user: currentUser, isAdmin } = useCurrentUser()
@@ -250,18 +251,8 @@ export default function TasksPage() {
       return t.is_zarzad === true
     }
 
-    // W widoku ogólnym zadania Zarządu są ukryte
-    if (t.is_zarzad) return false
-
-    // Zarząd widzi absolutnie wszystko (poza tablicą Zarządu)
-    if (isAdmin) return true
-
-    // Zwykły członek widzi tylko:
-    const isMine = t.owner_id === currentUser?.id
-    const isMyDept = t.department_id === currentUser?.department_id
-    const isGlobal = !t.department_id && !t.owner_id // Zadania rzucone globalnie, bez pionu
-
-    return isMine || isMyDept || isGlobal
+    // Widok ogólny: bez zadań Zarządu; Zarząd widzi resztę, członek — swoje, swojego pionu i globalne
+    return isVisibleOnBoard(t, currentUser, isAdmin)
   })
 
   const zarzadTaskCount = tasks.filter(t => t.is_zarzad).length

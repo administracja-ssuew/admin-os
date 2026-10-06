@@ -12,6 +12,12 @@
 
 Test HTTP na lokalnym buildzie: /login i /wniosek odpowiadają 200; HTML wniosku zawiera tytuł i nie zawiera kategorii; /knowledge odpowiada 404. /scores bez sesji zwraca strumieniowany redirect Next.js do /login (`NEXT_REDIRECT;replace;/login;307;`), bez treści ocen. Zewnętrzny status odpowiedzi strumieniowanej wynosi 200, co nie oznacza udzielenia dostępu.
 
+## Weryfikacja zmian z 2026-10-06
+
+- `npm run typecheck`, `npm test` (21 testów, w tym nowe `dashboard` i `cred-notes`), `npm run build` z przykładowym URL/kluczem Supabase: PASS.
+- ESLint zmienionych plików: brak nowych błędów względem bazowego commita (liczniki reguł równe, 2 ostrzeżenia mniej).
+- Nie wykonano testu w przeglądarce z rzeczywistą sesją — lokalnie brak `.env.local`.
+
 ## Co sprawdzają testy
 
 PGlite uruchamia rzeczywisty silnik PostgreSQL, tabele, funkcje i RLS z nowych migracji. Fixture emuluje auth.uid() i konta Supabase; identyfikatory profili celowo różnią się od kont Auth.

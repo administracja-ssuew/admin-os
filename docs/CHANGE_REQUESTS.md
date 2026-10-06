@@ -31,3 +31,12 @@ Nie zastosowano tych migracji do zdalnej bazy. Do czasu ich zastosowania nowy mo
 - Sprawdzić porządek obrad, obecność i protokół; głosowania i /knowledge mają być niedostępne.
 
 Kolejne wymagania użytkownika należy dopisywać, nie zastępując tej listy bez wyraźnego polecenia.
+
+# Zmiany z 2026-10-06
+
+1. Nawigacja: Panel Główny → Zadania → Rejestr Spraw → CRED → Archiwizacja → Zebrania. Podkomisje usunięte z interfejsu: „Moja Podkomisja” zastąpiła samodzielna zakładka `/archiving` (teczki archiwalne i rejestr podań) dla wszystkich zalogowanych; `/my-department` przekierowuje na `/archiving`. Podzakładka „Sprawy” (przypinanie spraw do podkomisji) oraz panele Logistyki i Grantów nie są już osiągalne z UI; pliki komponentów i dane w bazie pozostają. Widoczność zakładki nie zmienia uprawnień w bazie: `archive_folders` ma polityki dla wszystkich zalogowanych, polityki tabeli `petitions` nie są w repozytorium — sprawdzić na docelowym Supabase.
+2. Sidebar ma wysokość okna (`h-dvh`), a nawigacja przewija się wewnątrz panelu.
+3. Dashboard: usunięty kafelek „Nadchodzące Zebrania”; trzy kafelki statystyk są klikalne (Rejestr Spraw / Zadania). Pod nimi cztery kafelki zastępujące wykres i dotychczasowe listy: Moje zadania (otwarte, przypisane do zalogowanej osoby), Zadania ogólne (zadania widoczne na ogólnej Tablicy z licznikami i statusem), Nowe wnioski (sprawy z Formularza Zewnętrznego o statusie Nowa), Pilne (czerwony; niezakończone zadania z terminem dziś/jutro lub po terminie, z przyciskiem „Przejdź do Tablicy”). Logika w `lib/dashboard.ts`; Tablica Zadań używa tej samej reguły widoczności.
+4. CRED: notatka była kodowana `encodeURIComponent` mimo wysyłki w JSON, przez co zapisywała się z `%20`. Tekst jest teraz wysyłany bez kodowania; historyczne zakodowane notatki są dekodowane przy wyświetlaniu (`lib/cred-notes.ts`), bez zmiany danych w arkuszu CRED.
+
+Odbiór: przewinąć menu na niskim oknie i na telefonie; sprawdzić 4 kafelki na koncie z przypisanymi zadaniami i nowym wnioskiem z formularza; dodać w CRED notatkę ze spacjami i polskimi znakami; otworzyć Archiwizację kontem bez roli admin i sprawdzić odczyt podań.
