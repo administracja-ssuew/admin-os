@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit --incremental false",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "sb": "node scripts/supabase.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",

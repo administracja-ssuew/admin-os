@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase CLI (link state, local token)
+supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -44,3 +47,4 @@ next-env.d.ts
 /lint-results.json
 /.worktrees/
 !.env.local.example
+!.env.supabase.example
