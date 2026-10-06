@@ -1,6 +1,3 @@
-import { Resend } from 'resend'
-
-const FROM_EMAIL = process.env.NOTIFICATION_FROM_EMAIL || 'AdminOS <system@komisja.pl>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 interface SendEmailParams {
@@ -9,26 +6,42 @@ interface SendEmailParams {
   html: string
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailParams) {
-  try {
-    if (!process.env.RESEND_API_KEY) return { success: false, error: 'RESEND_API_KEY is not configured' }
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: Array.isArray(to) ? to : [to],
-      subject: `[AdminOS] ${subject}`,
-      html: wrapInTemplate(html),
-    })
+interface SendEmailDeps {
+  fetch?: typeof fetch
+  env?: Record<string, string | undefined>
+}
 
-    if (error) {
+export type SendEmailResult = { success: boolean; skipped?: boolean; error?: string }
+
+/**
+ * Wysyłka przez Google Apps Script (scripts/gas/mailer.gs) — bez Resend i konfiguracji DNS.
+ * Brak MAIL_GAS_URL/MAIL_GAS_TOKEN oznacza pominięcie e-maila, nie błąd aplikacji.
+ */
+export async function sendEmail({ to, subject, html }: SendEmailParams, deps: SendEmailDeps = {}): Promise<SendEmailResult> {
+  const env = deps.env ?? process.env
+  const doFetch = deps.fetch ?? fetch
+  const url = env.MAIL_GAS_URL
+  const token = env.MAIL_GAS_TOKEN
+  if (!url || !token) {
+    console.warn('E-mail pominięty: brak MAIL_GAS_URL lub MAIL_GAS_TOKEN')
+    return { success: false, skipped: true }
+  }
+  try {
+    const res = await doFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, to: Array.isArray(to) ? to : [to], subject: `[AdminOS] ${subject}`, html: wrapInTemplate(html) }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!data?.ok) {
+      const error = data?.error ?? `HTTP ${res.status}`
       console.error('Email send error:', error)
       return { success: false, error }
     }
-
-    return { success: true, data }
+    return { success: true }
   } catch (err) {
     console.error('Email send exception:', err)
-    return { success: false, error: err }
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
 

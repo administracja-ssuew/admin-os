@@ -1,4 +1,4 @@
-import { APP_URL } from './email'
+import { APP_URL } from './email.ts'
 
 export function taskAssignedTemplate(taskTitle: string, assignerName: string) {
   return {
@@ -131,6 +131,23 @@ export function deadlineReminderTemplate(taskTitle: string, deadline: string) {
       </div>
       <a href="${APP_URL}/tasks" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
         Przejdź do zadań
+      </a>
+    `,
+  }
+}
+
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** Jeden szablon dla wszystkich powiadomień: tytuł, opis i przycisk do konkretnego miejsca. */
+export function notificationEmailTemplate(title: string, body: string, link: string) {
+  return {
+    subject: title,
+    html: `
+      <h2 style="margin:0 0 12px;color:#1e293b;font-size:18px;">${escapeHtml(title)}</h2>
+      <p style="margin:0 0 12px;color:#475569;font-size:14px;line-height:1.6;">${escapeHtml(body)}</p>
+      <a href="${APP_URL}${link}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
+        Otwórz w AdminOS
       </a>
     `,
   }
