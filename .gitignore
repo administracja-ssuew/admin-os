@@ -48,3 +48,6 @@ next-env.d.ts
 /.worktrees/
 !.env.local.example
 !.env.supabase.example
+
+# lokalne artefakty wykonywania planów (superpowers)
+.superpowers/
