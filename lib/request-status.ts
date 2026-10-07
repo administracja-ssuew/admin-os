@@ -8,3 +8,9 @@ export function normalizeCaseNumber(input: string): string {
   if (!match) return text
   return `WNI/${match[1]}/${match[2].padStart(4, '0')}`
 }
+
+/** E-mail wnioskodawcy z nagłówka opisu zapisywanego przez formularz: "[E-mail: adres | Tel: …]". */
+export function contactEmailFromDescription(description: string | null): string | null {
+  const match = description?.match(/^\[E-mail: ([^\]\s|]+)/)
+  return match ? match[1] : null
+}

@@ -2,6 +2,12 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { EXTERNAL_UPLOAD_PREFIX, FILES_BUCKET, externalFileError, sanitizeFileName, storagePath } from '../../lib/files'
+import { contactEmailFromDescription } from '../../lib/request-status'
+import { resolveExternalSubmission } from '../../lib/notifications/resolve'
+import { dispatch, supabaseStore } from '../../lib/notifications/dispatch'
+import { loadBoard } from '../../lib/notifications/load'
+import { sendEmail } from '../../lib/email'
+import { externalSubmissionConfirmationTemplate } from '../../lib/email-templates'
 
 function getServiceClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -87,9 +93,22 @@ export async function submitExternalCase(payload: {
       confidentiality_level: 'internal',
       attachments: attachments.length > 0 ? attachments : null,
     }])
-    .select('case_number')
+    .select('id, case_number, title, description')
     .single()
 
   if (error) return { error: error.message }
+
+  // Powiadomienia nie mogą zablokować przyjęcia wniosku
+  try {
+    await dispatch(supabaseStore(supabase), resolveExternalSubmission(data, await loadBoard(supabase)))
+    const contact = contactEmailFromDescription(data.description)
+    if (contact) {
+      const tpl = externalSubmissionConfirmationTemplate(data.case_number, data.title)
+      await sendEmail({ to: contact, subject: tpl.subject, html: tpl.html })
+    }
+  } catch (err) {
+    console.error('External submission notification failed:', err)
+  }
+
   return { caseNumber: data.case_number }
 }

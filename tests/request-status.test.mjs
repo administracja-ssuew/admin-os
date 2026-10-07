@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeCaseNumber } from '../lib/request-status.ts'
+import { normalizeCaseNumber, contactEmailFromDescription } from '../lib/request-status.ts'
 
 test('case numbers are normalized to WNI/YYYY/NNNN', () => {
   assert.equal(normalizeCaseNumber('WNI/2026/0007'), 'WNI/2026/0007')
@@ -12,4 +12,10 @@ test('case numbers are normalized to WNI/YYYY/NNNN', () => {
 test('unrecognized input is only trimmed and uppercased', () => {
   assert.equal(normalizeCaseNumber(' abc '), 'ABC')
   assert.equal(normalizeCaseNumber('WNI/2026/12345'), 'WNI/2026/12345')
+})
+test('contact e-mail is read from the description written by the form', () => {
+  assert.equal(contactEmailFromDescription('[E-mail: jan@example.org | Tel: 600]\n\nTreść'), 'jan@example.org')
+  assert.equal(contactEmailFromDescription('[E-mail: anna@example.org]\n\nTreść'), 'anna@example.org')
+  assert.equal(contactEmailFromDescription('Opis bez nagłówka'), null)
+  assert.equal(contactEmailFromDescription(null), null)
 })

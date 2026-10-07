@@ -9,7 +9,6 @@ import {
   CalendarDays,
 } from 'lucide-react'
 import Link from 'next/link'
-import { notifyExternalSubmission } from '../actions/notifyExternalSubmission'
 import { fetchPublicCalendarEvents, submitExternalCase } from '../actions/externalCase'
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -214,11 +213,6 @@ export default function PublicIntakePage() {
     if ('caseNumber' in result) {
       setGeneratedNumber(result.caseNumber)
       setIsSuccess(true)
-      notifyExternalSubmission({
-        caseNumber: result.caseNumber,
-        caseTitle: formData.title,
-        contactEmail: formData.contact_email,
-      }).catch(err => console.error('External notification failed:', err))
     } else {
       setErrorMsg('Wystąpił problem z połączeniem. Spróbuj ponownie za chwilę.')
       console.error(result.error)
