@@ -1,8 +1,9 @@
 'use server'
 
+import { after } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { EXTERNAL_UPLOAD_PREFIX, FILES_BUCKET, externalFileError, sanitizeFileName, storagePath } from '../../lib/files'
-import { contactEmailFromDescription } from '../../lib/request-status'
+import { contactEmailFromDescription, externalCaseInputError } from '../../lib/request-status'
 import { resolveExternalSubmission } from '../../lib/notifications/resolve'
 import { dispatch, supabaseStore } from '../../lib/notifications/dispatch'
 import { loadBoard } from '../../lib/notifications/load'
@@ -73,6 +74,8 @@ export async function submitExternalCase(payload: {
   description: string
   attachments: { id: string; name: string; url: string; added_at: string }[] | null
 }): Promise<{ caseNumber: string } | { error: string }> {
+  const invalid = externalCaseInputError(payload?.title, payload?.description)
+  if (invalid) return { error: invalid }
   const supabase = getServiceClient()
 
   // Przyjmujemy wyłącznie pliki wysłane przez createExternalUpload (folder wnioski/ naszego magazynu)
@@ -98,17 +101,25 @@ export async function submitExternalCase(payload: {
 
   if (error) return { error: error.message }
 
-  // Powiadomienia nie mogą zablokować przyjęcia wniosku
-  try {
-    await dispatch(supabaseStore(supabase), resolveExternalSubmission(data, await loadBoard(supabase)))
-    const contact = contactEmailFromDescription(data.description)
-    if (contact) {
-      const tpl = externalSubmissionConfirmationTemplate(data.case_number, data.title)
-      await sendEmail({ to: contact, subject: tpl.subject, html: tpl.html })
+  // Powiadomienia po wysłaniu odpowiedzi: wnioskodawca nie czeka na e-maile do zarządu,
+  // a ich błąd nie zamienia przyjętego wniosku w komunikat o błędzie
+  after(async () => {
+    try {
+      await dispatch(supabaseStore(supabase), resolveExternalSubmission(data, await loadBoard(supabase)))
+    } catch (err) {
+      console.error('Powiadomienie zarządu o wniosku nie powiodło się:', err)
     }
-  } catch (err) {
-    console.error('External submission notification failed:', err)
-  }
+    // Osobno: błąd powiadomienia zarządu nie może pominąć potwierdzenia dla wnioskodawcy
+    try {
+      const contact = contactEmailFromDescription(data.description)
+      if (contact) {
+        const tpl = externalSubmissionConfirmationTemplate(data.case_number, data.title)
+        await sendEmail({ to: contact, subject: tpl.subject, html: tpl.html })
+      }
+    } catch (err) {
+      console.error('Potwierdzenie dla wnioskodawcy nie zostało wysłane:', err)
+    }
+  })
 
   return { caseNumber: data.case_number }
 }

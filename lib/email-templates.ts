@@ -1,5 +1,9 @@
 import { APP_URL } from './email.ts'
 
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+// Tytuł i numer pochodzą z publicznego formularza — zawsze escapowane
 export function externalSubmissionConfirmationTemplate(caseNumber: string, title: string) {
   return {
     subject: `Potwierdzenie przyjęcia wniosku ${caseNumber}`,
@@ -10,10 +14,10 @@ export function externalSubmissionConfirmationTemplate(caseNumber: string, title
       </p>
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin:12px 0;">
         <p style="margin:0 0 4px;color:#166534;font-size:12px;font-weight:600;">NUMER SPRAWY</p>
-        <p style="margin:0;color:#1e293b;font-size:18px;font-weight:700;font-family:monospace;">${caseNumber}</p>
+        <p style="margin:0;color:#1e293b;font-size:18px;font-weight:700;font-family:monospace;">${escapeHtml(caseNumber)}</p>
       </div>
       <p style="margin:12px 0;color:#475569;font-size:14px;">
-        Tytuł: <strong>${title}</strong>
+        Tytuł: <strong>${escapeHtml(title)}</strong>
       </p>
       <p style="margin:12px 0;color:#475569;font-size:14px;line-height:1.6;">
         Zachowaj ten numer — status sprawdzisz, podając go razem z adresem e-mail z wniosku.
@@ -24,9 +28,6 @@ export function externalSubmissionConfirmationTemplate(caseNumber: string, title
     `,
   }
 }
-
-const escapeHtml = (text: string) =>
-  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /** Jeden szablon dla wszystkich powiadomień: tytuł, opis i przycisk do konkretnego miejsca. */
 export function notificationEmailTemplate(title: string, body: string, link: string) {

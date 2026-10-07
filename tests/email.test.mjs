@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sendEmail } from '../lib/email.ts'
-import { notificationEmailTemplate } from '../lib/email-templates.ts'
+import { externalSubmissionConfirmationTemplate, notificationEmailTemplate } from '../lib/email-templates.ts'
 
 const env = { MAIL_GAS_URL: 'https://script.google.com/macros/s/X/exec', MAIL_GAS_TOKEN: 'secret' }
 
@@ -39,4 +39,13 @@ test('notification template escapes text and links to the app', () => {
   assert.match(tpl.html, /Nowe &lt;zadanie&gt;/)
   assert.match(tpl.html, /Treść &amp; więcej/)
   assert.match(tpl.html, /href="[^"]*\/tasks\?task=1"/)
+})
+
+test('applicant confirmation escapes the title and case number taken from the public form', () => {
+  const tpl = externalSubmissionConfirmationTemplate('WNI/2026/0001<b>', 'Wniosek <a href="https://zly.example">Zaloguj się</a> & więcej')
+  assert.doesNotMatch(tpl.html, /<a href="https:\/\/zly\.example">/)
+  assert.doesNotMatch(tpl.html, /<b>/)
+  assert.match(tpl.html, /Wniosek &lt;a href=&quot;https:\/\/zly\.example&quot;&gt;Zaloguj się&lt;\/a&gt; &amp; więcej/)
+  assert.match(tpl.html, /WNI\/2026\/0001&lt;b&gt;/)
+  assert.match(tpl.html, /status\?nr=WNI%2F2026%2F0001%3Cb%3E/)
 })

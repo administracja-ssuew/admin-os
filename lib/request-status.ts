@@ -14,3 +14,16 @@ export function contactEmailFromDescription(description: string | null): string 
   const match = description?.match(/^\[E-mail: ([^\]\s|]+)/)
   return match ? match[1] : null
 }
+
+/** Limity pól publicznego formularza (tytuł jak maxLength w /wniosek; opis = 5000 znaków treści + nagłówek z kontaktem). */
+export const EXTERNAL_TITLE_MAX = 200
+export const EXTERNAL_DESCRIPTION_MAX = 6000
+
+/** Walidacja po stronie serwera — formularz publiczny można wywołać z pominięciem przeglądarki. */
+export function externalCaseInputError(title: unknown, description: unknown): string | null {
+  if (typeof title !== 'string' || !title.trim()) return 'Tytuł wniosku jest wymagany'
+  if (title.length > EXTERNAL_TITLE_MAX) return `Tytuł wniosku może mieć najwyżej ${EXTERNAL_TITLE_MAX} znaków`
+  if (typeof description !== 'string' || !description.trim()) return 'Opis wniosku jest wymagany'
+  if (description.length > EXTERNAL_DESCRIPTION_MAX) return `Opis wniosku może mieć najwyżej ${EXTERNAL_DESCRIPTION_MAX} znaków`
+  return null
+}

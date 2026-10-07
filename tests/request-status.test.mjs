@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeCaseNumber, contactEmailFromDescription } from '../lib/request-status.ts'
+import { normalizeCaseNumber, contactEmailFromDescription, externalCaseInputError, EXTERNAL_TITLE_MAX, EXTERNAL_DESCRIPTION_MAX } from '../lib/request-status.ts'
 
 test('case numbers are normalized to WNI/YYYY/NNNN', () => {
   assert.equal(normalizeCaseNumber('WNI/2026/0007'), 'WNI/2026/0007')
@@ -18,4 +18,13 @@ test('contact e-mail is read from the description written by the form', () => {
   assert.equal(contactEmailFromDescription('[E-mail: anna@example.org]\n\nTreść'), 'anna@example.org')
   assert.equal(contactEmailFromDescription('Opis bez nagłówka'), null)
   assert.equal(contactEmailFromDescription(null), null)
+})
+test('public request fields are limited on the server', () => {
+  assert.equal(externalCaseInputError('Remont', 'Opis'), null)
+  assert.equal(externalCaseInputError('x'.repeat(EXTERNAL_TITLE_MAX), 'y'.repeat(EXTERNAL_DESCRIPTION_MAX)), null)
+  assert.match(externalCaseInputError('x'.repeat(EXTERNAL_TITLE_MAX + 1), 'Opis'), /Tytuł/)
+  assert.match(externalCaseInputError('Remont', 'y'.repeat(EXTERNAL_DESCRIPTION_MAX + 1)), /Opis/)
+  assert.match(externalCaseInputError('   ', 'Opis'), /Tytuł/)
+  assert.match(externalCaseInputError(42, 'Opis'), /Tytuł/)
+  assert.match(externalCaseInputError('Remont', null), /Opis/)
 })
