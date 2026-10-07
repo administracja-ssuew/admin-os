@@ -138,7 +138,7 @@ export default function CasesPage() {
       setSelectedCase({ ...selectedCase, owner_id: newOwnerId, users: newOwner ? { first_name: newOwner.first_name, last_name: newOwner.last_name } : null })
       setOwnerDropdownOpen(false)
       toast.success('Sprawa przepisana')
-      if (newOwnerId) notify('case_assigned', selectedCase.id)
+      if (newOwnerId && newOwnerId !== selectedCase.owner_id) notify('case_assigned', selectedCase.id)
       await logAudit({ userId: currentUser.id, action: 'case.reassign', entityType: 'case', entityId: selectedCase.id, newValue: { owner_id: newOwnerId } })
       fetchData()
     } else toast.error('Błąd przepisywania')
