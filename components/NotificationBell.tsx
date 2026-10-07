@@ -18,19 +18,18 @@ export default function NotificationBell() {
 
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user?.id) return
-      setUserId(session.user.id)
-      fetchNotifications(session.user.id)
+      if (!session?.user?.email) return
+      // Powiadomienia są zapisane pod public.users.id (może różnić się od auth.uid())
+      const { data: profile } = await supabase.from('users').select('id').eq('email', session.user.email).maybeSingle()
+      if (!profile) return
+      const uid = profile.id
+      setUserId(uid)
+      fetchNotifications(uid)
 
       channel = supabase
         .channel('notifications-realtime')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${session.user.id}`,
-        }, () => {
-          fetchNotifications(session.user.id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, () => {
+          fetchNotifications(uid)
         })
         .subscribe()
     }

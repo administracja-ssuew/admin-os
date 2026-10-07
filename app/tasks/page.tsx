@@ -97,8 +97,16 @@ export default function TasksPage() {
     if (usersData) setUsers(usersData)
     if (projectsData) setProjects(projectsData)
     if (casesData) setCases(casesData)
-    
+
     setLoading(false)
+
+    // Link z powiadomienia: /tasks?task=<id> otwiera szczegóły zadania
+    const wanted = new URLSearchParams(window.location.search).get('task')
+    if (wanted && tasksData) {
+      const found = tasksData.find((t: Task) => t.id === wanted)
+      if (found) { setSelectedTask(found); setFeedbackText(found.verification_feedback || ''); setIsDrawerOpen(true) }
+      window.history.replaceState(null, '', '/tasks')
+    }
   }
 
 

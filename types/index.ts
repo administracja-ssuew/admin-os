@@ -151,14 +151,8 @@ export interface AuditLogEntry {
 }
 
 // ─── POWIADOMIENIA ──────────────────────────────────────────────
-export type NotificationType =
-  | 'task_assigned'
-  | 'case_status_change'
-  | 'case_comment'
-  | 'new_meeting'
-  | 'external_submission'
-  | 'deadline_reminder'
-  | 'task_feedback'
+import type { NotificationType } from '../lib/notifications/events'
+export type { NotificationType } from '../lib/notifications/events'
 
 export interface Notification {
   id: string

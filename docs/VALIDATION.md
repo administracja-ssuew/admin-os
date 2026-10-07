@@ -27,6 +27,24 @@ Scenariusze obejmują właściciela panelu, osobę dopuszczoną, samo posiadanie
 
 Dodatkowo testowane są wyłączenie dostępu do usuniętych modułów bez utraty historii, zapis sprawy bez kategorii, sygnatury SPR/CRED, łączenie filtrów i data graniczna obejmująca cały dzień.
 
+## Weryfikacja powiadomień (Task 8 — dzwoneczek, linki do rekordów)
+
+- `npm run typecheck`: PASS.
+- `npm test`: PASS, 58 testów (0 błędów).
+- `npm run build` z przykładowym `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` (bez dostępu do danych produkcyjnych), po usunięciu `.next`: PASS, Next.js 16.2.1/Turbopack.
+- ESLint `components/NotificationBell.tsx`, `app/tasks/page.tsx`, `app/cases/page.tsx`, `types/index.ts`: liczba błędów taka sama jak w bazowym commicie (29/29, policzone per plik). Przybyło jedno ostrzeżenie `react-hooks/exhaustive-deps` w `app/cases/page.tsx` — `fetchData` teraz wywołuje `openCaseDetails` (otwarcie rekordu z linku powiadomienia), co reguła liczy jako nową zależność efektu; błędów to nie dotyczy, a wzorzec (funkcja wywołana przed deklaracją w tym samym komponencie) jest już w pliku.
+- Nie wykonano testu w przeglądarce z rzeczywistą sesją — lokalnie brak `.env.local`; nie wykonano żadnego zapytania do bazy ani adresu produkcyjnego.
+
+### Odbiór na produkcji — pozostaje do wykonania (po wdrożeniu Vercel, kroki z `docs/superpowers/sdd/2026-10-06-powiadomienia/task-8-brief.md`, Step 5)
+
+Nic z tej listy nie zostało jeszcze wykonane; brak tu żadnych wyników.
+
+1. `npm run sb -- db query --linked "select type, count(*) from notifications where created_at > now() - interval '1 hour' group by 1"` — stan wyjściowy przed testami.
+2. Zalogowany jako `administracja@` przez REST: `POST https://admin-os-lake.vercel.app/api/notifications` z `{"event":"task_assigned","id":"<zadanie z właścicielem innym niż admin>"}` → oczekiwane 200, `inserted: 1`; drugie wywołanie → oczekiwane `skipped: 1`.
+3. `{"event":"task_reviewed","id":"<zadanie bez oceny>"}` → oczekiwane 403; `{"event":"external_submission","id":"x"}` → oczekiwane 400.
+4. Usunięcie wpisów testowych: `delete from notifications where created_at > '<czas testu>' and link like '/tasks?task=<id>'`.
+5. Po ustawieniu przez użytkownika `MAIL_GAS_URL`, `MAIL_GAS_TOKEN`, `CRON_SECRET` w Vercel i wdrożeniu `scripts/gas/mailer.gs`: wywołanie deadline-check z nagłówkiem `Authorization: Bearer $CRON_SECRET` → oczekiwane 200 z liczbami wysłanych powiadomień; sprawdzenie skrzynki pocztowej.
+
 ## Ograniczenia i dalszy audyt
 
 - Migracje nie były wykonywane na zdalnym Supabase. Fixture nie zastępuje kontroli realnego schematu, wcześniejszych triggerów i historii migracji. Repo nie zawiera kompletnego bazowego schematu.

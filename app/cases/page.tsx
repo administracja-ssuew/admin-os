@@ -79,6 +79,14 @@ export default function CasesPage() {
     if (casesRes.data) setCases(casesRes.data as Case[])
     if (usersRes.data) setUsers(usersRes.data as AppUser[])
     setLoading(false)
+
+    // Link z powiadomienia: /cases?case=<id> otwiera szczegóły sprawy
+    const wanted = new URLSearchParams(window.location.search).get('case')
+    if (wanted && casesRes.data) {
+      const found = (casesRes.data as Case[]).find(c => c.id === wanted)
+      if (found) openCaseDetails(found)
+      window.history.replaceState(null, '', '/cases')
+    }
   }
 
   const openCaseDetails = async (c: Case) => {
