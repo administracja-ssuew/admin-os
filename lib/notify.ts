@@ -1,25 +1,18 @@
 import { supabase } from './supabase'
+import type { ClientEvent } from './notifications/events.ts'
 
-export async function sendNotification(type: string, payload: Record<string, any>) {
+/** Zgłasza zdarzenie; serwer sam ustala odbiorców i treść. Błąd nie przerywa akcji użytkownika. */
+export async function notify(event: ClientEvent, id: string | null | undefined) {
+  if (!id) return
   try {
     const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
-
-    if (!token) {
-      console.error('Notification send failed: no active session token')
-      return
-    }
-
+    if (!session?.access_token) return
     await fetch('/api/notifications', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ type, payload }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ event, id }),
     })
   } catch (err) {
-    // Powiadomienia są nieblokujące — nie przerywamy akcji użytkownika
-    console.error('Notification send failed:', err)
+    console.error('Notification failed:', err)
   }
 }

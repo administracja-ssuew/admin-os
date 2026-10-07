@@ -6,6 +6,7 @@ import Sidebar from '../../components/Sidebar'
 import { Users, ShieldCheck, UserX, Clock, ChevronRight, ChevronLeft, UserCheck, AlertTriangle, Tag, X, Plus, User, Mail, Shield, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { logAudit } from '../../lib/audit'
+import { notify } from '../../lib/notify'
 import { ListSkeleton } from '../../components/Skeleton'
 
 export default function UsersPage() {
@@ -70,6 +71,8 @@ export default function UsersPage() {
           newValue: { system_role: editForm.system_role },
         })
       }
+      const wasBlocked = selectedUser.system_role === 'pending' || selectedUser.system_role === 'inactive'
+      if (wasBlocked && ['member', 'admin', 'superadmin'].includes(editForm.system_role)) notify('account_approved', selectedUser.id)
       toast.success(selectedUser.system_role === 'inactive' ? 'Konto przywrócone!' : 'Zapisano!', { id: toastId })
       setSelectedUser(null)
       fetchData()

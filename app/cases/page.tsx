@@ -9,7 +9,7 @@ import FilterBar, { FilterConfig } from '../../components/FilterBar'
 import FileUpload from '../../components/FileUpload'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { logAudit } from '../../lib/audit'
-import { sendNotification } from '../../lib/notify'
+import { notify } from '../../lib/notify'
 import {
   Briefcase, Plus, FileText, Link as LinkIcon, X, Clock, User,
   Send, Loader2, Shield, Paperclip, ChevronLeft,
@@ -125,18 +125,7 @@ export default function CasesPage() {
       toast.success(`Status zmieniony na: ${statusLabel(newStatus)}`)
       await logAudit({ userId: currentUser.id, action: 'case.status_change', entityType: 'case', entityId: selectedCase.id, oldValue: { status: oldStatus }, newValue: { status: newStatus } })
       fetchAuditEvents(selectedCase.id)
-      // Powiadomienie do właściciela sprawy
-      if (selectedCase.owner_id && selectedCase.owner_id !== currentUser.id) {
-        const owner = users.find(u => u.id === selectedCase.owner_id)
-        sendNotification('case_status_changed', {
-          caseNumber: selectedCase.case_number,
-          caseTitle: selectedCase.title,
-          oldStatus,
-          newStatus,
-          ownerId: selectedCase.owner_id,
-          ownerEmail: owner?.email,
-        })
-      }
+      notify('case_status_changed', selectedCase.id)
       fetchData()
     } else toast.error('Błąd zmiany statusu')
   }
@@ -149,6 +138,7 @@ export default function CasesPage() {
       setSelectedCase({ ...selectedCase, owner_id: newOwnerId, users: newOwner ? { first_name: newOwner.first_name, last_name: newOwner.last_name } : null })
       setOwnerDropdownOpen(false)
       toast.success('Sprawa przepisana')
+      if (newOwnerId) notify('case_assigned', selectedCase.id)
       await logAudit({ userId: currentUser.id, action: 'case.reassign', entityType: 'case', entityId: selectedCase.id, newValue: { owner_id: newOwnerId } })
       fetchData()
     } else toast.error('Błąd przepisywania')
@@ -174,17 +164,7 @@ export default function CasesPage() {
     const { error } = await supabase.from('case_comments').insert([{ case_id: selectedCase.id, user_id: currentUser.id, content: newComment }])
     if (!error) {
       setNewComment(''); fetchComments(selectedCase.id)
-      // Powiadomienie do właściciela (jeśli inny niż komentujący)
-      if (selectedCase.owner_id && selectedCase.owner_id !== currentUser.id) {
-        const owner = users.find(u => u.id === selectedCase.owner_id)
-        sendNotification('case_comment', {
-          caseNumber: selectedCase.case_number,
-          caseTitle: selectedCase.title,
-          commentAuthor: `${currentUser.first_name} ${currentUser.last_name}`,
-          ownerId: selectedCase.owner_id,
-          ownerEmail: owner?.email,
-        })
-      }
+      notify('case_comment', selectedCase.id)
     }
     setIsSendingComment(false)
   }
@@ -235,7 +215,7 @@ export default function CasesPage() {
       if (!isNaN(parsed)) nextNum = parsed + 1
     }
     const caseNumber = `SPR/${currentYear}/${nextNum}`
-    const { error } = await supabase.from('cases').insert([{
+    const { data: created, error } = await supabase.from('cases').insert([{
       title: formData.title,
       description: formData.description || null,
       confidentiality_level: formData.confidentiality_level,
@@ -243,12 +223,13 @@ export default function CasesPage() {
       case_number: caseNumber,
       status: 'new',
       attachments: []
-    }])
+    }]).select('id').single()
     if (!error) {
       setFormData({ title: '', description: '', confidentiality_level: 'internal', owner_id: '' })
       setIsModalOpen(false)
       fetchData()
       toast.success('Sprawa zarejestrowana')
+      if (formData.owner_id && formData.owner_id !== currentUser?.id) notify('case_assigned', created?.id)
     } else toast.error('Błąd rejestracji sprawy')
     setIsSubmitting(false)
   }

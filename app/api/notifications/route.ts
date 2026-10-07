@@ -1,195 +1,71 @@
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from '../../../lib/email'
+import { parseEventRequest } from '../../../lib/notifications/events'
+import { loadBoard, loadPersonByEmail, loadPersonById, serviceClient } from '../../../lib/notifications/load'
+import { dispatch, supabaseStore } from '../../../lib/notifications/dispatch'
 import {
-  taskAssignedTemplate,
-  caseStatusChangeTemplate,
-  newMeetingTemplate,
-  caseCommentTemplate,
-  externalSubmissionAdminTemplate,
-  externalSubmissionConfirmationTemplate,
-} from '../../../lib/email-templates'
+  resolveAccountApproved, resolveAccountPending, resolveCaseAssigned, resolveCaseComment, resolveCaseStatusChanged,
+  resolveTaskAssigned, resolveTaskReviewed, type CaseRecord, type Resolution, type TaskRecord,
+} from '../../../lib/notifications/resolve'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const TASK = 'id, title, owner_id, deadline, status, verification_status, verification_feedback'
+const CASE = 'id, case_number, title, owner_id, status'
 
-// POST /api/notifications
-// Body: { type, payload, userId? }
+// POST /api/notifications  { event, id } — treść i odbiorców ustala serwer na podstawie bazy
 export async function POST(request: Request) {
+  const db = serviceClient()
+  if (!db) return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' }, { status: 500 })
+
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+  if (!token) return new Response('Unauthorized', { status: 401 })
+  const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
+  const { data: { user } } = await anon.auth.getUser(token)
+  if (!user?.email) return new Response('Unauthorized', { status: 401 })
+
+  const req = parseEventRequest(await request.json().catch(() => null))
+  if (!req) return Response.json({ error: 'Nieprawidłowe zdarzenie' }, { status: 400 })
+
+  const actor = await loadPersonByEmail(db, user.email)
+  if (!actor) return Response.json({ error: 'Brak profilu' }, { status: 403 })
+
   try {
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseServiceKey) {
-      return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' }, { status: 500 })
-    }
-
-    const authHeader = request.headers.get('Authorization')
-    const token = authHeader?.replace('Bearer ', '')
-    if (!token) {
-      return new Response('Unauthorized', { status: 401 })
-    }
-
-    // Klient anon — wyłącznie do weryfikacji tokena użytkownika
-    const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const { data: { user } } = await supabaseAnon.auth.getUser(token)
-    if (!user) {
-      return new Response('Unauthorized', { status: 401 })
-    }
-    const callerUserId = user.id
-
-    // Klient service role — do wszystkich operacji DB (INSERT do notifications, SELECT adminów)
-    const supabaseService = createClient(supabaseUrl, supabaseServiceKey)
-
-    const body = await request.json()
-    const { type, payload } = body
-
-    if (!type || !payload) {
-      return Response.json({ error: 'Missing type or payload' }, { status: 400 })
-    }
-
-    // Pobieramy adminów do notyfikacji (dla typów 'external_submission')
-    const { data: admins } = await supabaseService
-      .from('users')
-      .select('id, email, first_name, last_name')
-      .in('system_role', ['admin', 'superadmin'])
-
-    switch (type) {
-
-      case 'task_assigned': {
-        // payload: { taskId, taskTitle, assigneeId, assigneeEmail, assignerName }
-        const { taskTitle, assigneeId, assigneeEmail, assignerName } = payload
-
-        // In-app
-        await supabaseService.from('notifications').insert([{
-          user_id: assigneeId,
-          type: 'task_assigned',
-          title: 'Przydzielono Ci nowe zadanie',
-          body: taskTitle,
-          link: '/tasks',
-        }])
-
-        // Email
-        if (assigneeEmail) {
-          const tpl = taskAssignedTemplate(taskTitle, assignerName)
-          await sendEmail({ to: assigneeEmail, subject: tpl.subject, html: tpl.html })
-        }
+    let resolution: Resolution
+    switch (req.event) {
+      case 'task_assigned':
+      case 'task_reviewed': {
+        const { data } = await db.from('tasks').select(TASK).eq('id', req.id).maybeSingle()
+        const task = data as TaskRecord | null
+        const owner = await loadPersonById(db, task?.owner_id ?? null)
+        resolution = req.event === 'task_assigned' ? resolveTaskAssigned(actor, task, owner) : resolveTaskReviewed(actor, task, owner)
         break
       }
-
-      case 'task_feedback': {
-        // payload: { taskTitle, assigneeId, isApproved, feedback, reviewerName }
-        const { taskTitle, assigneeId, isApproved, feedback, reviewerName } = payload
-
-        await supabaseService.from('notifications').insert([{
-          user_id: assigneeId,
-          type: 'task_feedback',
-          title: isApproved ? 'Twoje zadanie zostało zweryfikowane!' : 'Zadanie wymaga poprawek',
-          body: isApproved ? `${taskTitle} - Zatwierdzone przez ${reviewerName}` : `${taskTitle} - Od: ${reviewerName}`,
-          link: '/tasks',
-        }])
-        break
-      }
-
-      case 'case_status_changed': {
-        // payload: { caseNumber, caseTitle, oldStatus, newStatus, ownerEmail, ownerId }
-        const { caseNumber, caseTitle, oldStatus, newStatus, ownerEmail, ownerId } = payload
-
-        if (ownerId) {
-          await supabaseService.from('notifications').insert([{
-            user_id: ownerId,
-            type: 'case_status_changed',
-            title: `Zmiana statusu: ${caseNumber}`,
-            body: `${caseTitle} — ${newStatus}`,
-            link: '/cases',
-          }])
-        }
-
-        if (ownerEmail) {
-          const tpl = caseStatusChangeTemplate(caseNumber, caseTitle, oldStatus, newStatus)
-          await sendEmail({ to: ownerEmail, subject: tpl.subject, html: tpl.html })
-        }
-        break
-      }
-
+      case 'case_assigned':
+      case 'case_status_changed':
       case 'case_comment': {
-        // payload: { caseNumber, caseTitle, commentAuthor, ownerId, ownerEmail }
-        const { caseNumber, caseTitle, commentAuthor, ownerId, ownerEmail } = payload
-
-        if (ownerId) {
-          await supabaseService.from('notifications').insert([{
-            user_id: ownerId,
-            type: 'case_comment',
-            title: `Nowy komentarz w sprawie ${caseNumber}`,
-            body: `${commentAuthor} dodał/a komentarz`,
-            link: '/cases',
-          }])
-        }
-
-        if (ownerEmail) {
-          const tpl = caseCommentTemplate(caseNumber, caseTitle, commentAuthor, '')
-          await sendEmail({ to: ownerEmail, subject: tpl.subject, html: tpl.html })
+        const { data } = await db.from('cases').select(CASE).eq('id', req.id).maybeSingle()
+        const kase = data as CaseRecord | null
+        const owner = await loadPersonById(db, kase?.owner_id ?? null)
+        if (req.event === 'case_assigned') resolution = resolveCaseAssigned(actor, kase, owner)
+        else if (req.event === 'case_status_changed') resolution = resolveCaseStatusChanged(actor, kase, owner)
+        else {
+          const since = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+          const { data: comments } = await db.from('case_comments').select('id').eq('case_id', req.id).eq('user_id', actor.id).gte('created_at', since).limit(1)
+          resolution = resolveCaseComment(actor, kase, owner, (comments?.length ?? 0) > 0)
         }
         break
       }
-
-      case 'new_meeting': {
-        // payload: { meetingTitle, date, time, organizerName, attendeeIds: string[], attendeeEmails: string[] }
-        const { meetingTitle, date, time, organizerName, attendeeIds = [], attendeeEmails = [] } = payload
-
-        const tpl = newMeetingTemplate(meetingTitle, date, time, organizerName)
-
-        if (attendeeIds.length > 0) {
-          await supabaseService.from('notifications').insert(
-            attendeeIds.map((uid: string) => ({
-              user_id: uid,
-              type: 'new_meeting',
-              title: 'Nowe zebranie w kalendarzu',
-              body: `${meetingTitle} — ${date}${time ? ` o ${time}` : ''}`,
-              link: '/meetings',
-            }))
-          )
-        }
-
-        if (attendeeEmails.length > 0) {
-          await sendEmail({ to: attendeeEmails, subject: tpl.subject, html: tpl.html })
-        }
+      case 'account_pending':
+        resolution = resolveAccountPending(actor, req.id, await loadBoard(db))
         break
-      }
-
-      case 'external_submission': {
-        // payload: { caseNumber, caseTitle, contactEmail }
-        const { caseNumber, caseTitle, contactEmail } = payload
-
-        // In-app dla adminów
-        if (admins && admins.length > 0) {
-          await supabaseService.from('notifications').insert(
-            admins.map(a => ({
-              user_id: a.id,
-              type: 'external_submission',
-              title: `Nowy wniosek zewnętrzny: ${caseNumber}`,
-              body: caseTitle,
-              link: '/cases',
-            }))
-          )
-
-          // Email do adminów
-          const adminEmails = admins.map(a => a.email).filter(Boolean)
-          if (adminEmails.length > 0) {
-            const adminTpl = externalSubmissionAdminTemplate(caseNumber, caseTitle, contactEmail)
-            await sendEmail({ to: adminEmails, subject: adminTpl.subject, html: adminTpl.html })
-          }
-        }
-
-        // Potwierdzenie do wnioskodawcy
-        if (contactEmail) {
-          const confTpl = externalSubmissionConfirmationTemplate(caseNumber, caseTitle)
-          await sendEmail({ to: contactEmail, subject: confTpl.subject, html: confTpl.html })
-        }
+      case 'account_approved':
+        resolution = resolveAccountApproved(actor, await loadPersonById(db, req.id))
         break
-      }
-
       default:
-        return Response.json({ error: `Unknown notification type: ${type}` }, { status: 400 })
+        return Response.json({ error: 'Nieobsługiwane zdarzenie' }, { status: 400 })
     }
 
-    return Response.json({ success: true })
+    if (!resolution.ok) return Response.json({ error: resolution.reason }, { status: resolution.status })
+    const result = await dispatch(supabaseStore(db), resolution.notifications)
+    return Response.json({ success: true, ...result })
   } catch (err) {
     console.error('Notification error:', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

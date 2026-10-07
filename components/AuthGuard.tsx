@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { notify } from '../lib/notify'
 import { usePathname, useRouter } from 'next/navigation'
 import { ShieldAlert, LogOut, RefreshCw } from 'lucide-react'
 import { AppShellSkeleton } from './Skeleton'
@@ -36,7 +37,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // Pobieramy rolę zalogowanego użytkownika
     const { data: userData } = await supabase
       .from('users')
-      .select('system_role')
+      .select('id, system_role')
       .eq('email', session.user.email)
       .single()
 
@@ -46,6 +47,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // Jeśli konto jest w weryfikacji LUB zostało zawieszone
     if (role === 'pending' || role === 'inactive') {
       setStatus('pending')
+      // Zarząd dostaje informację raz na konto (deduplikacja po stronie serwera)
+      if (role === 'pending' && userData?.id) notify('account_pending', userData.id)
     } else {
       setStatus('active')
       // Konto właśnie zostało zatwierdzone — odśwież stronę

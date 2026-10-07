@@ -8,7 +8,7 @@ import FileLink from '../../components/FileLink'
 import { CheckSquare, Clock, Plus, LayoutGrid, List as ListIcon, Search, User, X, CheckCircle2, Circle, ArrowRight, ArrowLeft, Loader2, Paperclip, FileText, Hand, FolderKanban, Briefcase, Trash2, Edit2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Task, TaskStatus, AppUser, Case } from '../../types'
-import { sendNotification } from '../../lib/notify'
+import { notify } from '../../lib/notify'
 import { BoardSkeleton, TableSkeleton } from '../../components/Skeleton'
 import { isVisibleOnBoard } from '../../lib/dashboard'
 
@@ -59,15 +59,7 @@ export default function TasksPage() {
     }).eq('id', selectedTask.id)
   
     if (!error) {
-      if (selectedTask.owner_id) {
-         sendNotification('task_feedback', {
-           taskTitle: selectedTask.title,
-           assigneeId: selectedTask.owner_id,
-           isApproved: status === 'approved',
-           feedback: feedbackText || null,
-           reviewerName: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Zarząd'
-         })
-      }
+      notify('task_reviewed', selectedTask.id)
       toast.success('Pomyślnie wystawiono ocenę zadania!', { id: toastId })
       setSelectedTask({ ...selectedTask, verification_status: status, verification_feedback: feedbackText || null })
       fetchData()
@@ -146,6 +138,7 @@ export default function TasksPage() {
 
     if (!error) {
       toast.success('Zaktualizowano zadanie', { id: toastId })
+      if ((editForm.owner_id || null) !== (selectedTask.owner_id || null) && editForm.owner_id) notify('task_assigned', selectedTask.id)
       setIsEditingTask(false); setIsDrawerOpen(false); fetchData()
     } else {
       toast.error('Błąd zapisu', { id: toastId })
@@ -215,27 +208,17 @@ export default function TasksPage() {
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    const { error } = await supabase.from('tasks').insert([{
+    const { data: created, error } = await supabase.from('tasks').insert([{
       title: formData.title, description: formData.description, owner_id: formData.owner_id || null,
       project_id: formData.project_id || null, case_id: formData.case_id || null, deadline: formData.deadline || null, priority: formData.priority,
       status: formData.status, checklists: [], attachments: [], completion_percentage: 0,
       is_zarzad: boardMode === 'zarzad',
-    }])
+    }]).select('id').single()
     if (!error) {
       setFormData({ title: '', description: '', owner_id: '', project_id: '', case_id: '', deadline: '', status: 'to_do', priority: 'medium' }); setIsModalOpen(false); fetchData(); toast.success('Zadanie wrzucone na tablicę!')
       // Powiadomienie do assignee
-      if (formData.owner_id) {
-        const assignee = users.find(u => u.id === formData.owner_id)
-        if (assignee) {
-          sendNotification('task_assigned', {
-            taskTitle: formData.title,
-            assigneeId: assignee.id,
-            assigneeEmail: assignee.email,
-            assignerName: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'System',
-          })
-        }
-      }
-    } 
+      if (formData.owner_id) notify('task_assigned', created?.id)
+    }
     else { toast.error('Błąd dodawania zadania.') }
     setIsSubmitting(false)
   }
