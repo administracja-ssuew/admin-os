@@ -17,7 +17,8 @@ export const DEDUPE_FOREVER: ReadonlySet<NotificationType> = new Set<Notificatio
 
 export const taskLink = (id: string) => `/tasks?task=${encodeURIComponent(id)}`
 export const caseLink = (id: string) => `/cases?case=${encodeURIComponent(id)}`
-export const USERS_LINK = '/users'
+// Link osobny dla każdego konta — inaczej deduplikacja „kiedykolwiek” blokowałaby kolejne konta
+export const userLink = (id: string) => `/users?user=${encodeURIComponent(id)}`
 
 export const isActiveMember = (role: string | null | undefined) => ['member', 'active', 'admin', 'superadmin'].includes(role ?? '')
 export const isBoard = (role: string | null | undefined) => role === 'admin' || role === 'superadmin'

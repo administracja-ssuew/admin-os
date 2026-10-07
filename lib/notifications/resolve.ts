@@ -1,4 +1,4 @@
-import { EMAIL_TYPES, USERS_LINK, caseLink, isActiveMember, isBoard, taskLink, type NotificationType } from './events.ts'
+import { EMAIL_TYPES, caseLink, isActiveMember, isBoard, taskLink, userLink, type NotificationType } from './events.ts'
 
 export interface Person { id: string; email: string | null; first_name: string; last_name: string; system_role: string }
 export interface TaskRecord { id: string; title: string; owner_id: string | null; deadline: string | null; status: string; verification_status: string | null; verification_feedback: string | null }
@@ -68,7 +68,7 @@ export function resolveCaseComment(actor: Person, kase: CaseRecord | null, owner
 export function resolveAccountPending(actor: Person, targetId: string, board: Person[]): Resolution {
   if (actor.id !== targetId || actor.system_role !== 'pending') return deny(403, 'Można zgłosić tylko własne oczekujące konto')
   const who = actor.email ?? name(actor)
-  return { ok: true, notifications: board.map(b => to(b, 'account_pending', 'Nowe konto czeka na weryfikację', `${who} zarejestrował(a) się i czeka na zatwierdzenie w Kadrach.`, USERS_LINK)) }
+  return { ok: true, notifications: board.map(b => to(b, 'account_pending', 'Nowe konto czeka na weryfikację', `${who} zarejestrował(a) się i czeka na zatwierdzenie w Kadrach.`, userLink(actor.id))) }
 }
 
 export function resolveAccountApproved(actor: Person, target: Person | null): Resolution {

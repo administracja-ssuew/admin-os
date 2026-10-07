@@ -10,11 +10,11 @@ export const emails = { admin: 'admin@example.org', member: 'member@example.org'
 export const migration = name => readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')
 
 export const fixture = `
-  CREATE ROLE anon; CREATE ROLE authenticated;
+  CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
   CREATE SCHEMA auth; CREATE SCHEMA storage;
   CREATE FUNCTION auth.email() RETURNS text LANGUAGE sql AS
     $$ SELECT nullif(current_setting('request.jwt.claim.email', true), '') $$;
-  GRANT USAGE ON SCHEMA auth, storage, public TO anon, authenticated;
+  GRANT USAGE ON SCHEMA auth, storage, public TO anon, authenticated, service_role;
   CREATE TABLE storage.buckets (id text PRIMARY KEY, public boolean, file_size_limit bigint);
   INSERT INTO storage.buckets VALUES ('adminos-files', true, null);
   CREATE TABLE storage.objects (id serial, bucket_id text, name text);
@@ -47,7 +47,8 @@ export const fixture = `
   ALTER TABLE public.brainstorm_cards ENABLE ROW LEVEL SECURITY;
   CREATE TABLE public.meeting_protocols (id serial PRIMARY KEY);
   ALTER TABLE public.meeting_protocols ENABLE ROW LEVEL SECURITY;
-  CREATE TABLE public.notifications (id serial PRIMARY KEY, user_id uuid);
+  CREATE TABLE public.notifications (id serial PRIMARY KEY, user_id uuid, type text, title text, body text, link text,
+    is_read boolean DEFAULT false, created_at timestamptz DEFAULT now());
   ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
   CREATE POLICY service_role_insert_only ON public.notifications FOR INSERT WITH CHECK (false);
   INSERT INTO public.notifications (user_id) VALUES ('${ids.member}'), ('${ids.admin}');

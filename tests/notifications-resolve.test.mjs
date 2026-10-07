@@ -5,6 +5,7 @@ import {
   resolveTaskAssigned, resolveTaskReviewed, resolveCaseAssigned, resolveCaseStatusChanged, resolveCaseComment,
   resolveAccountPending, resolveAccountApproved, resolveExternalSubmission, resolveDeadlines, warsawDate, addDays,
 } from '../lib/notifications/resolve.ts'
+import { dispatch } from '../lib/notifications/dispatch.ts'
 
 const person = (id, role = 'member', extra = {}) => ({ id, email: `${id}@example.org`, first_name: id.toUpperCase(), last_name: 'Nowak', system_role: role, ...extra })
 const anna = person('anna'), jan = person('jan'), boss = person('boss', 'admin'), newbie = person('newbie', 'pending')
@@ -53,12 +54,32 @@ test('cases: new owner by e-mail; status and comments by bell; never the actor',
 
 test('accounts: pending person notifies the board about itself only; approval needs the board', () => {
   const pending = resolveAccountPending(newbie, 'newbie', [boss, person('chief', 'superadmin')])
-  assert.deepEqual(pending.notifications.map(n => [n.userId, n.type, n.link, n.sendEmail]), [['boss', 'account_pending', '/users', true], ['chief', 'account_pending', '/users', true]])
+  assert.deepEqual(pending.notifications.map(n => [n.userId, n.type, n.link, n.sendEmail]), [['boss', 'account_pending', '/users?user=newbie', true], ['chief', 'account_pending', '/users?user=newbie', true]])
   assert.equal(resolveAccountPending(newbie, 'boss', [boss]).status, 403)
   assert.equal(resolveAccountPending(anna, 'anna', [boss]).status, 403, 'konto już aktywne')
   assert.equal(resolveAccountApproved(anna, jan).status, 403)
   assert.equal(resolveAccountApproved(boss, newbie).status, 403, 'konto nadal oczekuje')
   assert.deepEqual(resolveAccountApproved(boss, jan).notifications.map(n => [n.userId, n.type, n.sendEmail]), [['jan', 'account_approved', true]])
+})
+
+test('every new pending account reaches the board, not only the first one ever', async () => {
+  const rows = []
+  const store = {
+    async insertOnce(item, since) {
+      if (rows.some(r => r.userId === item.userId && r.type === item.type && r.link === item.link && (!since || r.createdAt >= since))) return false
+      rows.push({ ...item, createdAt: new Date() })
+      return true
+    },
+  }
+  const send = async () => ({ success: true })
+  const alice = person('alice', 'pending'), carol = person('carol', 'pending')
+  const first = await dispatch(store, resolveAccountPending(alice, 'alice', [boss]).notifications, { send })
+  const second = await dispatch(store, resolveAccountPending(carol, 'carol', [boss]).notifications, { send })
+  assert.equal(first.inserted, 1)
+  assert.equal(second.inserted, 1, 'drugie konto także trafia do zarządu')
+  assert.equal(second.emailed, 1)
+  const again = await dispatch(store, resolveAccountPending(alice, 'alice', [boss]).notifications, { send })
+  assert.equal(again.skipped, 1, 'to samo konto zgłoszone ponownie — bez powtórki')
 })
 
 test('external submission goes to the whole board', () => {

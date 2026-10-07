@@ -7,53 +7,73 @@ import type { Outgoing } from './resolve.ts'
 export const DEDUPE_WINDOW_MS = 10 * 60 * 1000
 
 export interface NotificationStore {
-  exists(userId: string, type: string, link: string, since: Date | null): Promise<boolean>
-  insert(item: Outgoing): Promise<void>
+  /**
+   * Zapisuje powiadomienie, jeśli ten sam odbiorca nie ma już wpisu o tym samym typie i linku
+   * od `since` (null = kiedykolwiek). Sprawdzenie i zapis są jedną operacją. Zwraca, czy zapisano.
+   */
+  insertOnce(item: Outgoing, since: Date | null): Promise<boolean>
 }
 
-/** Magazyn w tabeli notifications (klient z service role). */
+/** Magazyn w tabeli notifications (klient z service role) — funkcja z migracji 20261007_notifications_dedupe.sql. */
 export function supabaseStore(db: SupabaseClient): NotificationStore {
   return {
-    async exists(userId, type, link, since) {
-      let query = db.from('notifications').select('id').eq('user_id', userId).eq('type', type).eq('link', link).limit(1)
-      if (since) query = query.gte('created_at', since.toISOString())
-      const { data, error } = await query
+    async insertOnce(item, since) {
+      const { data, error } = await db.rpc('insert_notification_once', {
+        p_user_id: item.userId,
+        p_type: item.type,
+        p_title: item.title,
+        p_body: item.body,
+        p_link: item.link,
+        p_since: since ? since.toISOString() : null,
+      })
       if (error) throw error
-      return (data?.length ?? 0) > 0
-    },
-    async insert(item) {
-      const { error } = await db.from('notifications').insert([{ user_id: item.userId, type: item.type, title: item.title, body: item.body, link: item.link }])
-      if (error) throw error
+      return data === true
     },
   }
 }
+
+export interface DispatchResult { inserted: number; skipped: number; emailed: number; emailFailed: number; failed: number }
 
 export async function dispatch(
   store: NotificationStore,
   items: Outgoing[],
   deps: { now?: Date; send?: typeof sendEmail } = {}
-): Promise<{ inserted: number; skipped: number; emailed: number; emailFailed: number }> {
+): Promise<DispatchResult> {
   const now = deps.now ?? new Date()
   const send = deps.send ?? sendEmail
-  const result = { inserted: 0, skipped: 0, emailed: 0, emailFailed: 0 }
+  const result: DispatchResult = { inserted: 0, skipped: 0, emailed: 0, emailFailed: 0, failed: 0 }
   const seen = new Set<string>()
 
   for (const item of items) {
     const key = `${item.userId}|${item.type}|${item.link}`
-    const since = DEDUPE_FOREVER.has(item.type) ? null : new Date(now.getTime() - DEDUPE_WINDOW_MS)
-    if (seen.has(key) || await store.exists(item.userId, item.type, item.link, since)) {
+    if (seen.has(key)) {
       result.skipped++
       continue
     }
     seen.add(key)
-    await store.insert(item)
-    result.inserted++
 
-    if (item.sendEmail && item.email) {
-      const tpl = notificationEmailTemplate(item.title, item.body, item.link)
-      const sent = await send({ to: item.email, subject: tpl.subject, html: tpl.html })
-      if (sent.success) result.emailed++
-      else if (!sent.skipped) result.emailFailed++
+    // Błąd jednego odbiorcy (baza, poczta) nie przerywa wysyłki do pozostałych
+    let stored = false
+    try {
+      const since = DEDUPE_FOREVER.has(item.type) ? null : new Date(now.getTime() - DEDUPE_WINDOW_MS)
+      stored = await store.insertOnce(item, since)
+      if (!stored) {
+        result.skipped++
+        continue
+      }
+      result.inserted++
+
+      // E-mail tylko wtedy, gdy wpis faktycznie powstał w tym wywołaniu
+      if (item.sendEmail && item.email) {
+        const tpl = notificationEmailTemplate(item.title, item.body, item.link)
+        const sent = await send({ to: item.email, subject: tpl.subject, html: tpl.html })
+        if (sent.success) result.emailed++
+        else if (!sent.skipped) result.emailFailed++
+      }
+    } catch (err) {
+      console.error('Powiadomienie nie zostało obsłużone:', item.type, item.link, err)
+      if (stored) result.emailFailed++
+      else result.failed++
     }
   }
   return result
