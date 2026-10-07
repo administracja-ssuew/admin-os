@@ -99,6 +99,19 @@ test('deadlines: tomorrow and first overdue day, only open tasks with an owner',
   assert.deepEqual(resolveDeadlines(tasks, today).map(n => [n.link, n.type, n.sendEmail]), [['/tasks?task=a', 'deadline_tomorrow', true], ['/tasks?task=b', 'deadline_overdue', true]])
 })
 
+test('owners without an active account get no task, case or deadline notifications', () => {
+  for (const role of ['inactive', 'pending']) {
+    const gone = person('gone', role)
+    assert.deepEqual(resolveTaskAssigned(anna, task, gone), { ok: true, notifications: [] }, role)
+    assert.deepEqual(resolveTaskReviewed(boss, { ...task, verification_status: 'rejected' }, gone), { ok: true, notifications: [] }, role)
+    assert.deepEqual(resolveCaseAssigned(anna, kase, gone), { ok: true, notifications: [] }, role)
+    assert.deepEqual(resolveCaseStatusChanged(anna, kase, gone), { ok: true, notifications: [] }, role)
+    assert.deepEqual(resolveCaseComment(anna, kase, gone, true), { ok: true, notifications: [] }, role)
+    const tasks = [{ ...task, id: 'a', deadline: '2026-10-07', owner: gone }, { ...task, id: 'b', deadline: '2026-10-05', owner: gone }]
+    assert.deepEqual(resolveDeadlines(tasks, '2026-10-06'), [], role)
+  }
+})
+
 test('dates are computed in Warsaw time', () => {
   assert.equal(warsawDate(new Date('2026-10-06T22:30:00Z')), '2026-10-07')
   assert.equal(warsawDate(new Date('2026-12-31T22:59:00Z')), '2026-12-31')

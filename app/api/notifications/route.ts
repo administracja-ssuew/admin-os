@@ -17,17 +17,19 @@ export async function POST(request: Request) {
 
   const token = request.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return new Response('Unauthorized', { status: 401 })
-  const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
-  const { data: { user } } = await anon.auth.getUser(token)
-  if (!user?.email) return new Response('Unauthorized', { status: 401 })
 
-  const req = parseEventRequest(await request.json().catch(() => null))
-  if (!req) return Response.json({ error: 'Nieprawidłowe zdarzenie' }, { status: 400 })
-
-  const actor = await loadPersonByEmail(db, user.email)
-  if (!actor) return Response.json({ error: 'Brak profilu' }, { status: 403 })
-
+  // Każdy błąd sieci lub bazy (także przy weryfikacji autora) kończy się odpowiedzią JSON 500
   try {
+    const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
+    const { data: { user } } = await anon.auth.getUser(token)
+    if (!user?.email) return new Response('Unauthorized', { status: 401 })
+
+    const req = parseEventRequest(await request.json().catch(() => null))
+    if (!req) return Response.json({ error: 'Nieprawidłowe zdarzenie' }, { status: 400 })
+
+    const actor = await loadPersonByEmail(db, user.email)
+    if (!actor) return Response.json({ error: 'Brak profilu' }, { status: 403 })
+
     let resolution: Resolution
     switch (req.event) {
       case 'task_assigned':

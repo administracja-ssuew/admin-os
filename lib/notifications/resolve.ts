@@ -15,8 +15,9 @@ function to(recipient: Person, type: NotificationType, title: string, body: stri
   return { userId: recipient.id, email: recipient.email, type, title, body, link, sendEmail: EMAIL_TYPES.has(type) }
 }
 
-/** Odbiorca istnieje i nie jest autorem zmiany. */
-const recipientOf = (actor: Person, owner: Person | null) => (owner && owner.id !== actor.id ? owner : null)
+/** Odbiorca istnieje, ma aktywne konto i nie jest autorem zmiany (actor pomijamy przy przypomnieniach). */
+const recipientOf = (actor: Person | null, owner: Person | null) =>
+  (owner && isActiveMember(owner.system_role) && owner.id !== actor?.id ? owner : null)
 
 export function resolveTaskAssigned(actor: Person, task: TaskRecord | null, owner: Person | null): Resolution {
   if (!isActiveMember(actor.system_role)) return deny(403, 'Brak uprawnień')
@@ -87,17 +88,21 @@ export function resolveDeadlines(tasks: Array<TaskRecord & { owner: Person | nul
   const yesterday = addDays(today, -1)
   const out: Outgoing[] = []
   for (const t of tasks) {
-    if (!t.owner || t.status === 'done' || !t.deadline) continue
+    const owner = recipientOf(null, t.owner)
+    if (!owner || t.status === 'done' || !t.deadline) continue
     const day = t.deadline.slice(0, 10)
-    if (day === tomorrow) out.push(to(t.owner, 'deadline_tomorrow', 'Termin zadania jutro', `Zadanie „${t.title}” ma termin jutro.`, taskLink(t.id)))
-    if (day === yesterday) out.push(to(t.owner, 'deadline_overdue', 'Zadanie po terminie', `Termin zadania „${t.title}” minął wczoraj.`, taskLink(t.id)))
+    if (day === tomorrow) out.push(to(owner, 'deadline_tomorrow', 'Termin zadania jutro', `Zadanie „${t.title}” ma termin jutro.`, taskLink(t.id)))
+    if (day === yesterday) out.push(to(owner, 'deadline_overdue', 'Zadanie po terminie', `Termin zadania „${t.title}” minął wczoraj.`, taskLink(t.id)))
   }
   return out
 }
 
 /** Dzień kalendarzowy w Warszawie (YYYY-MM-DD). */
 export function warsawDate(now: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  // Składamy datę z części — nie zależymy od kolejności pól w formacie danej lokalizacji
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now)
+  const part = (type: 'year' | 'month' | 'day') => parts.find(p => p.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
 }
 
 export function addDays(date: string, days: number): string {

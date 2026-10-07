@@ -18,6 +18,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [pollCountdown, setPollCountdown] = useState(15)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const countdownRef = useRef<NodeJS.Timeout | null>(null)
+  // account_pending wysyłamy raz na zamontowanie, nie przy każdym sprawdzeniu co 15 s ani zmianie trasy
+  const pendingNotifiedRef = useRef(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -48,7 +50,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     if (role === 'pending' || role === 'inactive') {
       setStatus('pending')
       // Zarząd dostaje informację raz na konto (deduplikacja po stronie serwera)
-      if (role === 'pending' && userData?.id) notify('account_pending', userData.id)
+      if (role === 'pending' && userData?.id && !pendingNotifiedRef.current) {
+        pendingNotifiedRef.current = true
+        notify('account_pending', userData.id)
+      }
     } else {
       setStatus('active')
       // Konto właśnie zostało zatwierdzone — odśwież stronę
