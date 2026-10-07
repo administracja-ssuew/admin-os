@@ -1,73 +1,29 @@
-import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from '../../../../lib/email'
-import { deadlineReminderTemplate } from '../../../../lib/email-templates'
+import { serviceClient } from '../../../../lib/notifications/load'
+import { dispatch, supabaseStore } from '../../../../lib/notifications/dispatch'
+import { addDays, resolveDeadlines, warsawDate, type Person, type TaskRecord } from '../../../../lib/notifications/resolve'
 
-// GET /api/notifications/deadline-check
-// Wywołać jako cron (np. Vercel Cron Job co 24h)
-// Cron caller musi wysyłać: Authorization: Bearer $CRON_SECRET
+// GET /api/notifications/deadline-check — Vercel Cron (vercel.json), nagłówek Authorization: Bearer $CRON_SECRET
 export async function GET(request: Request) {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!supabaseServiceKey) {
-    return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' }, { status: 500 })
-  }
-
   const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return Response.json({ error: 'CRON_SECRET is not configured' }, { status: 500 })
-  }
+  if (!cronSecret) return Response.json({ error: 'CRON_SECRET is not configured' }, { status: 500 })
+  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Weryfikacja przez Authorization header (sekrety w query params trafiają do logów serwera — SEC-05)
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseServiceKey
-  )
+  const db = serviceClient()
+  if (!db) return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' }, { status: 500 })
 
   try {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
-
-    // Zadania z deadline = jutro, status != done
-    const { data: tasks } = await supabase
+    const today = warsawDate(new Date())
+    const { data, error } = await db
       .from('tasks')
-      .select('id, title, deadline, owner_id, users!tasks_owner_id_fkey(id, email, first_name, last_name)')
-      .eq('deadline', tomorrowStr)
+      .select('id, title, owner_id, deadline, status, verification_status, verification_feedback, owner:users!tasks_owner_id_fkey(id, email, first_name, last_name, system_role)')
+      .in('deadline', [addDays(today, 1), addDays(today, -1)])
       .neq('status', 'done')
+      .not('owner_id', 'is', null)
+    if (error) throw error
 
-    if (!tasks || tasks.length === 0) {
-      return Response.json({ success: true, processed: 0 })
-    }
-
-    let processed = 0
-
-    for (const task of tasks) {
-      const owner = (task as any).users
-      if (!owner) continue
-
-      // In-app
-      await supabase.from('notifications').insert([{
-        user_id: owner.id,
-        type: 'deadline_reminder',
-        title: `Termin zadania jutro`,
-        body: task.title,
-        link: '/tasks',
-      }])
-
-      // Email
-      if (owner.email) {
-        const tpl = deadlineReminderTemplate(task.title, task.deadline)
-        await sendEmail({ to: owner.email, subject: tpl.subject, html: tpl.html })
-      }
-
-      processed++
-    }
-
-    return Response.json({ success: true, processed })
+    const tasks = (data ?? []) as unknown as Array<TaskRecord & { owner: Person | null }>
+    const result = await dispatch(supabaseStore(db), resolveDeadlines(tasks, today))
+    return Response.json({ success: true, today, ...result })
   } catch (err) {
     console.error('Deadline check error:', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

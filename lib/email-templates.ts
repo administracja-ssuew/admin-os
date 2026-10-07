@@ -25,22 +25,6 @@ export function externalSubmissionConfirmationTemplate(caseNumber: string, title
   }
 }
 
-export function deadlineReminderTemplate(taskTitle: string, deadline: string) {
-  return {
-    subject: `Przypomnienie: termin zadania "${taskTitle}" upływa jutro`,
-    html: `
-      <h2 style="margin:0 0 12px;color:#1e293b;font-size:18px;">Zbliża się termin zadania</h2>
-      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin:12px 0;">
-        <p style="margin:0 0 4px;color:#991b1b;font-size:12px;font-weight:600;">TERMIN: ${deadline}</p>
-        <p style="margin:0;color:#1e293b;font-size:15px;font-weight:600;">${taskTitle}</p>
-      </div>
-      <a href="${APP_URL}/tasks" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
-        Przejdź do zadań
-      </a>
-    `,
-  }
-}
-
 const escapeHtml = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
