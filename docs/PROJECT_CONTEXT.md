@@ -42,7 +42,7 @@ Większość stron jest komponentami klientowymi i komunikuje się bezpośrednio
 
 `public.scores_access.user_id` wskazuje **auth.users.id**. Identyfikatory `public.users.id` mogą się różnić; oceny nadal odnoszą się do profili publicznych. Nie zamieniaj tych identyfikatorów.
 
-Administrator nadaje dostęp w `ScoresAccessPanel`. Osoby dopuszczone mają podgląd ocen i rankingu. Zapis ocen i zmiana limitów pozostają dostępne tylko wskazanemu kontu. Odwołanie uprawnień blokuje kolejne zapytanie do bazy; interfejs odświeża widoczność co 30 sekund i po odzyskaniu fokusu.
+Administrator nadaje dostęp w `ScoresAccessPanel`. Osoby dopuszczone przeglądają i edytują oceny, notatki i limity (`has_scores_access()`). Zarządzanie dostępem pozostaje tylko wskazanemu kontu (`is_scores_admin()`). Odwołanie uprawnień blokuje kolejne zapytanie do bazy; interfejs odświeża widoczność co 30 sekund i po odzyskaniu fokusu.
 
 ## Zasady zmian
 

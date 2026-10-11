@@ -63,7 +63,8 @@ function PercentBar({ pct }: { pct: number }) {
 
 export default function ScoresClientPage() {
   const router = useRouter()
-  const { allowed, admin: canEdit, loading: accessLoading } = useScoresAccess()
+  const { allowed, admin: canManageAccess, loading: accessLoading } = useScoresAccess()
+  const canEdit = allowed
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
 
@@ -266,7 +267,7 @@ export default function ScoresClientPage() {
         </div>
       </div>
 
-      {canEdit && <ScoresAccessPanel />}
+      {canManageAccess && <ScoresAccessPanel />}
       {loadError && <div role="alert" className="max-w-6xl mx-auto mb-6 text-red-300">{loadError} <button onClick={() => { setLoading(true); setReload(value => value + 1) }} className="underline">Spróbuj ponownie</button></div>}
 
       {/* NAWIGACJA MIESIĄCA */}

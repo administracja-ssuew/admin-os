@@ -51,6 +51,7 @@ before(async () => {
     INSERT INTO public.member_scores(user_id, year, month, activity_points) VALUES ('${member}', 2026, 9, 5);`)
   await db.exec(await migration('20260921_scores_access.sql'))
   await db.exec(await migration('20260921_retire_categories_knowledge_voting.sql'))
+  await db.exec(await migration('20261011_scores_access_edit.sql'))
 })
 beforeEach(async () => {
   await db.exec(`RESET ROLE; TRUNCATE public.scores_access;
@@ -86,17 +87,30 @@ test('grant persists and revocation blocks the next read in the same session', a
   assert.equal(await scalar('SELECT public.has_scores_access()'), false)
   assert.equal(await scalar('SELECT count(*)::int FROM public.member_scores'), 0)
 })
-test('viewer cannot edit scores, limits or access grants', async () => {
+test('granted user edits scores and limits but cannot manage access grants', async () => {
   await asUser(owner)
   await db.exec(`INSERT INTO public.scores_access(user_id) VALUES ('${viewer}')`)
   await asUser(viewer)
-  assert.equal((await db.query('UPDATE public.member_scores SET activity_points = 1 RETURNING id')).rows.length, 0)
-  await assert.rejects(db.exec(`INSERT INTO public.member_scores(user_id, year, month) VALUES ('${member}', 2026, 10)`), /row-level security/)
+  assert.equal((await db.query(`UPDATE public.member_scores SET activity_points = 7 WHERE user_id = '${member}' RETURNING id`)).rows.length, 1)
+  await db.exec(`INSERT INTO public.member_scores(user_id, year, month, quality_points) VALUES ('${member}', 2026, 10, 3)`)
+  await db.exec(`SELECT public.set_score_limit('${member}', 12)`)
+  assert.equal(await scalar(`SELECT personal_limit FROM public.users WHERE id = '${member}'`), 12)
+  await assert.rejects(db.exec(`SELECT public.set_score_limit('${member}', 0)`), /Limit musi/)
   await assert.rejects(db.exec(`INSERT INTO public.scores_access(user_id) VALUES ('${superadmin}')`), /row-level security/)
   assert.equal((await db.query('DELETE FROM public.scores_access RETURNING user_id')).rows.length, 0)
-  await assert.rejects(db.exec(`SELECT public.set_score_limit('${member}', 10)`), /Brak uprawnień/)
-  await assert.rejects(db.exec(`UPDATE public.users SET personal_limit = 10 WHERE id = '${member}'`), /Brak uprawnień/)
-  assert.equal(await scalar('SELECT count(*)::int FROM public.scores_access'), 0)
+  await assert.rejects(db.exec('SELECT * FROM public.list_scores_access()'), /Brak uprawnień/)
+  await asUser(owner)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.scores_access'), 1)
+  await db.exec(`DELETE FROM public.member_scores WHERE month = 10; UPDATE public.member_scores SET activity_points = 5; UPDATE public.users SET personal_limit = 20`)
+})
+test('users without a grant cannot edit scores or limits', async () => {
+  for (const id of [viewer, superadmin]) {
+    await asUser(id)
+    assert.equal((await db.query('UPDATE public.member_scores SET activity_points = 1 RETURNING id')).rows.length, 0)
+    await assert.rejects(db.exec(`INSERT INTO public.member_scores(user_id, year, month) VALUES ('${member}', 2026, 11)`), /row-level security/)
+    await assert.rejects(db.exec(`SELECT public.set_score_limit('${member}', 10)`), /Brak uprawnień/)
+    await assert.rejects(db.exec(`UPDATE public.users SET personal_limit = 10 WHERE id = '${member}'`), /Brak uprawnień/)
+  }
 })
 test('editing a public profile email cannot impersonate the access administrator', async () => {
   await asUser(viewer)

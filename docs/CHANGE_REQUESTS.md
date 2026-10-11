@@ -55,3 +55,11 @@ Kolejne wymagania użytkownika należy dopisywać, nie zastępując tej listy be
     Do ustawienia przez użytkownika: w Vercel (Settings → Environment Variables) zmienne `MAIL_GAS_URL` (adres wdrożenia Apps Script), `MAIL_GAS_TOKEN` (sekret, ten sam co w Script Properties skryptu), `CRON_SECRET` (sekret dla przypomnień, Vercel dodaje go sam do wywołania cronu) i `NEXT_PUBLIC_APP_URL` (adres aplikacji do linków w e-mailach); w Google Apps Script — wdrożenie `scripts/gas/mailer.gs` jako aplikacja internetowa („Wykonaj jako: ja”, „Dostęp: każdy”) z `TOKEN` w Script Properties. Bez `MAIL_GAS_URL`/`MAIL_GAS_TOKEN` e-maile są pomijane z ostrzeżeniem w logach, dzwoneczek działa bez zmian.
 
 Odbiór: przewinąć menu na niskim oknie i na telefonie; sprawdzić 4 kafelki na koncie z przypisanymi zadaniami i nowym wnioskiem z formularza; dodać w CRED notatkę ze spacjami i polskimi znakami; otworzyć Archiwizację kontem bez roli admin i sprawdzić odczyt podań. Odbiór powiadomień na produkcji (po wdrożeniu Vercel i ustawieniu zmiennych) — lista kroków w `docs/VALIDATION.md`, jeszcze nie wykonany.
+
+# Zmiany z 2026-10-11
+
+1. System Motywacyjny: osoba, której administracja@ nada dostęp, edytuje oceny, notatki i limity (wcześniej wyłącznie podgląd — zmienia interpretację z pkt 1 listy „Wykonane w kodzie”). Zarządzanie dostępem (`scores_access`, `list_scores_access`) pozostaje wyłącznie dla administracja@samorzad.ue.wroc.pl. W bazie: polityka `scores_write`, `set_score_limit` i trigger `guard_score_limit` sprawdzają `has_scores_access()` zamiast `is_scores_admin()`.
+
+    Przed wdrożeniem kodu: migracja `supabase/migrations/20261011_scores_access_edit.sql`. Bez niej interfejs pokaże pola edycji, ale zapis osoby z dostępem zakończy się błędem. Nie uruchamiano jej na produkcji.
+
+    Odbiór: kontem z nadanym dostępem zapisać ocenę i zmienić limit; kontem bez dostępu sprawdzić brak odczytu i zapisu; potwierdzić, że osoba z dostępem nie widzi panelu nadawania dostępu.

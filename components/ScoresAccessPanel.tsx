@@ -34,7 +34,7 @@ export default function ScoresAccessPanel() {
         : await supabase.from('scores_access').insert({ user_id: user.user_id }).select('user_id')
       if (result.error || result.data?.length !== 1) throw result.error ?? new Error('Access denied')
       setUsers(prev => prev.map(item => item.user_id === user.user_id ? { ...item, has_access: !item.has_access } : item))
-      toast.success(user.has_access ? 'Odebrano dostęp' : 'Nadano dostęp do podglądu')
+      toast.success(user.has_access ? 'Odebrano dostęp' : 'Nadano dostęp')
     } catch { toast.error('Nie udało się zmienić dostępu. Odśwież listę i spróbuj ponownie.') }
     finally { setBusy(null) }
   }
@@ -43,7 +43,7 @@ export default function ScoresAccessPanel() {
   return (
     <section aria-labelledby="scores-access-title" className="max-w-6xl mx-auto mb-8 rounded-xl border border-slate-700 bg-slate-900 p-5">
       <h2 id="scores-access-title" className="text-lg font-bold text-white">Dostęp do Systemu Motywacyjnego</h2>
-      <p className="mt-1 text-sm text-slate-300">Uprawnione osoby mogą przeglądać oceny i ranking. Tylko administracja@samorzad.ue.wroc.pl zarządza dostępem i edytuje oceny.</p>
+      <p className="mt-1 text-sm text-slate-300">Uprawnione osoby mogą przeglądać i edytować oceny, notatki i limity. Tylko administracja@samorzad.ue.wroc.pl zarządza dostępem.</p>
       <label htmlFor="scores-access-search" className="block mt-4 mb-1 text-sm text-slate-300">Szukaj osoby po e-mailu</label>
       <input id="scores-access-search" type="search" value={query} onChange={event => setQuery(event.target.value)} className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
       {loading ? <p className="mt-4 text-slate-300" role="status">Ładowanie uprawnień…</p> : error ? (
@@ -52,7 +52,7 @@ export default function ScoresAccessPanel() {
         <ul className="mt-4 max-h-80 overflow-y-auto divide-y divide-slate-700">
           {filtered.map(user => (
             <li key={user.user_id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div className="min-w-0"><p className="break-all text-sm text-white">{user.email}</p><p className="text-sm text-slate-300">{user.has_access ? 'Ma dostęp do podglądu' : 'Brak dostępu'}</p></div>
+              <div className="min-w-0"><p className="break-all text-sm text-white">{user.email}</p><p className="text-sm text-slate-300">{user.has_access ? 'Ma dostęp' : 'Brak dostępu'}</p></div>
               <button disabled={busy !== null} onClick={() => toggle(user)} aria-label={`${user.has_access ? 'Odbierz' : 'Nadaj'} dostęp: ${user.email}`} className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-600 focus-visible:outline-2 focus-visible:outline-blue-400 disabled:opacity-50">
                 {busy === user.user_id ? 'Zapisywanie…' : user.has_access ? 'Odbierz dostęp' : 'Nadaj dostęp'}
               </button>
