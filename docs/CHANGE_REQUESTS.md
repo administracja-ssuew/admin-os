@@ -60,6 +60,6 @@ Odbiór: przewinąć menu na niskim oknie i na telefonie; sprawdzić 4 kafelki n
 
 1. System Motywacyjny: osoba, której administracja@ nada dostęp, edytuje oceny, notatki i limity (wcześniej wyłącznie podgląd — zmienia interpretację z pkt 1 listy „Wykonane w kodzie”). Zarządzanie dostępem (`scores_access`, `list_scores_access`) pozostaje wyłącznie dla administracja@samorzad.ue.wroc.pl. W bazie: polityka `scores_write`, `set_score_limit` i trigger `guard_score_limit` sprawdzają `has_scores_access()` zamiast `is_scores_admin()`.
 
-    Przed wdrożeniem kodu: migracja `supabase/migrations/20261011_scores_access_edit.sql`. Bez niej interfejs pokaże pola edycji, ale zapis osoby z dostępem zakończy się błędem. Nie uruchamiano jej na produkcji.
+    Przed wdrożeniem kodu: migracja `supabase/migrations/20261011_scores_access_edit.sql`. Bez niej interfejs pokaże pola edycji, ale zapis osoby z dostępem zakończy się błędem. Zastosowana na produkcji (`mutflmihoxndxefuxsno`) 2026-10-11 przez `npm run sb -- db query --linked -f`; po migracji `scores_write`, `set_score_limit` i `guard_score_limit` sprawdzają `has_scores_access()`, `set_score_limit` nadal niedostępne dla anon.
 
     Odbiór: kontem z nadanym dostępem zapisać ocenę i zmienić limit; kontem bez dostępu sprawdzić brak odczytu i zapisu; potwierdzić, że osoba z dostępem nie widzi panelu nadawania dostępu.
